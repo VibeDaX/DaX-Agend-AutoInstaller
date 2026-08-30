@@ -98,44 +98,66 @@ git clone https://github.com/VibeDaX/DaX-Agend-AutoInstaller.git && cd DaX-Agend
 
 ---
 
-## 📋 Control-Plane Hauptmenü (Interaktiv)
+## 📋 Control-Plane Hauptmenü (Interaktiv & Kategorisiert)
 
 ```text
-HOST
-  [0]  System / Capability Check (Preflight Matrix)
+============================================================
+          DAX COMMAND CENTER v6.3-control-plane
+       CONTROL-PLANE EDITION (Policy/Adapter/Watchdog)
+============================================================
+Platform: linux | GPU: cuda | Mode: cuda
+Docker: true/true | KVM: true | libvirt: true
 
-RUNTIMES
-  [1]  Native Runtime / System Dependencies (Python VENVs)
-  [2]  Docker Runtime (Container & Compose Management)
-  [3]  KVM / VM Runtime (QEMU/libvirt & Snapshots)
-  [4]  Remote Runtime (SSH Orchestrierung)
-
-CONTROL-PLANE MODULES
-  [5]  Agent Manager / Deployment Wizard
-  [6]  Agent Profiles (Manifeste)
-  [7]  Policy Manager (.dax/policy.yaml)
-  [8]  Volume Manager (.dax/volumes.yaml)
-  [9]  Secrets Manager (AES-256)
-  [10] Template Manager (Compose, VM, Remote Stacks)
-  [11] Encrypted Backup & Restore (.tar.gz.enc)
-  [12] Web Status Dashboard & API (Port 9090)
-
-SERVICES
-  [13] Ollama konfigurieren & starten
-  [14] Ollama Modell laden (RAM-Check Engine)
-  [15] ComfyUI installieren/starten (CUDA/ROCm/CPU)
-  [16] Open WebUI installieren/starten
-  [17] Node-RED + Faster-Whisper Integration
-
-OPERATIONS
-  [18] Health / Watchdog Check
-  [19] Installation verifizieren
-  [20] State / Configuration anzeigen
-  [21] Automatisierte Testsuite ausführen (100% Validierung)
-  [22] Dienste stoppen
-  [23] Logs anzeigen
-  [24] Beenden
+[1] HOST (Preflight Matrix & Hardware Check)
+[2] RUNTIMES (Native, Docker, KVM, Remote)
+[3] CONTROL-PLANE MODULES (Agents, Policy, Secrets, Backups, Dashboard)
+[4] SERVICES (Ollama, ComfyUI, Open WebUI, Node-RED/Whisper)
+[5] OPERATIONS (Watchdog, Tests, State, Stop, Logs)
+[6] Beenden
 ```
+
+---
+
+### 📂 Untermenü-Struktur:
+
+* **[1] HOST & HARDWARE MATRIX**
+  * `[1]` System / Capability Check (Preflight Matrix)
+  * `[2]` Zurück ins Hauptmenü
+
+* **[2] RUNTIMES MANAGEMENT**
+  * `[1]` Native Runtime / System Dependencies (Python VENVs)
+  * `[2]` Docker Runtime (Container & Compose Management)
+  * `[3]` KVM / VM Runtime (QEMU/libvirt & Snapshots)
+  * `[4]` Remote Runtime (SSH Orchestrierung)
+  * `[5]` Zurück ins Hauptmenü
+
+* **[3] CONTROL-PLANE MODULES**
+  * `[1]` Agent Manager / Deployment Wizard
+  * `[2]` Agent Profiles (Manifeste)
+  * `[3]` Policy Manager (`.dax/policy.yaml`)
+  * `[4]` Volume Manager (`.dax/volumes.yaml`)
+  * `[5]` Secrets Manager (AES-256)
+  * `[6]` Template Manager
+  * `[7]` Encrypted Backup & Restore (`.tar.gz.enc`)
+  * `[8]` Web Status Dashboard & API (Port 9090)
+  * `[9]` Zurück ins Hauptmenü
+
+* **[4] SERVICES MANAGEMENT**
+  * `[1]` Ollama konfigurieren & starten
+  * `[2]` Ollama Modell laden (RAM-Check Engine)
+  * `[3]` ComfyUI installieren/starten
+  * `[4]` Open WebUI installieren/starten
+  * `[5]` Node-RED + Faster-Whisper
+  * `[6]` Zurück ins Hauptmenü
+
+* **[5] OPERATIONS & MONITORING**
+  * `[1]` Health / Watchdog Check
+  * `[2]` Installation verifizieren
+  * `[3]` State / Configuration anzeigen
+  * `[4]` Automatisierte Testsuite ausführen (100% Validierung)
+  * `[5]` Dienste stoppen
+  * `[6]` Logs anzeigen
+  * `[7]` Zurück ins Hauptmenü
 
 ---
 

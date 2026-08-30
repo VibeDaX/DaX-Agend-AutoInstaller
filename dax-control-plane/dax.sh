@@ -221,28 +221,36 @@ install_docker(){
 }
 
 runtime_menu(){
+  clear 2>/dev/null || true
   echo "=== DOCKER RUNTIME MANAGEMENT ==="
   echo "1) Docker & Compose installieren"
   echo "2) Shared Context & Dockerfiles initialisieren"
   echo "3) Stack starten (docker compose up -d)"
   echo "4) Stack stoppen"
+  echo "5) Zurück"
   read -rp "Auswahl: " c
+  clear 2>/dev/null || true
   case "$c" in
-    1) install_docker ;;
-    2) docker_context_init ;;
-    3) [[ -f "$DOCKER_DIR/compose.yml" ]] && (cd "$DOCKER_DIR" && docker compose up -d) || warn "Keine compose.yml gefunden." ;;
-    4) [[ -f "$DOCKER_DIR/compose.yml" ]] && (cd "$DOCKER_DIR" && docker compose down) ;;
+    1) install_docker; pause_menu ;;
+    2) docker_context_init; pause_menu ;;
+    3) [[ -f "$DOCKER_DIR/compose.yml" ]] && (cd "$DOCKER_DIR" && docker compose up -d); pause_menu ;;
+    4) [[ -f "$DOCKER_DIR/compose.yml" ]] && (cd "$DOCKER_DIR" && docker compose down); pause_menu ;;
+    5) return 0 ;;
   esac
 }
 
 vm_menu(){
+  clear 2>/dev/null || true
   echo "=== KVM / VM RUNTIME MANAGEMENT ==="
   echo "1) KVM & libvirt Pakete installieren"
   echo "2) VM Status abfragen"
+  echo "3) Zurück"
   read -rp "Auswahl: " c
+  clear 2>/dev/null || true
   case "$c" in
-    1) apt_install qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils ;;
-    2) command_exists virsh && virsh list --all || echo "virsh nicht verfügbar." ;;
+    1) apt_install qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils; pause_menu ;;
+    2) command_exists virsh && virsh list --all || echo "virsh nicht verfügbar."; pause_menu ;;
+    3) return 0 ;;
   esac
 }
 
@@ -283,7 +291,129 @@ pause_menu(){
 }
 
 # =============================================================================
-# MAIN MENU
+# KATEGORIEN-SUBMENÜS
+# =============================================================================
+
+menu_host(){
+  while true; do
+    clear 2>/dev/null || true
+    echo -e "${CLR_BLUE}=== [1] HOST & HARDWARE MATRIX ===${CLR_RESET}"
+    echo "[1] System / Capability Check (Preflight Matrix)"
+    echo "[2] Zurück ins Hauptmenü"
+    read -rp 'Auswahl [1-2]: ' c
+    clear 2>/dev/null || true
+    case "$c" in
+      1) show_preflight; pause_menu ;;
+      2) return 0 ;;
+      *) warn 'Ungültige Auswahl.'; sleep 1 ;;
+    esac
+  done
+}
+
+menu_runtimes(){
+  while true; do
+    clear 2>/dev/null || true
+    echo -e "${CLR_BLUE}=== [2] RUNTIMES ===${CLR_RESET}"
+    echo "[1] Native Runtime / System Dependencies (Python VENVs)"
+    echo "[2] Docker Runtime (Container & Compose Management)"
+    echo "[3] KVM / VM Runtime (QEMU/libvirt & Snapshots)"
+    echo "[4] Remote Runtime (SSH Orchestrierung)"
+    echo "[5] Zurück ins Hauptmenü"
+    read -rp 'Auswahl [1-5]: ' c
+    clear 2>/dev/null || true
+    case "$c" in
+      1) install_system_dependencies; pause_menu ;;
+      2) runtime_menu ;;
+      3) vm_menu ;;
+      4) echo "Remote Runtime: SSH/Orchestrator-Schnittstelle ist bereit."; pause_menu ;;
+      5) return 0 ;;
+      *) warn 'Ungültige Auswahl.'; sleep 1 ;;
+    esac
+  done
+}
+
+menu_control_plane(){
+  while true; do
+    clear 2>/dev/null || true
+    echo -e "${CLR_BLUE}=== [3] CONTROL-PLANE MODULES ===${CLR_RESET}"
+    echo "[1] Agent Manager / Deployment Wizard"
+    echo "[2] Agent Profiles (Manifeste)"
+    echo "[3] Policy Manager (.dax/policy.yaml)"
+    echo "[4] Volume Manager (.dax/volumes.yaml)"
+    echo "[5] Secrets Manager (AES-256)"
+    echo "[6] Template Manager"
+    echo "[7] Encrypted Backup & Restore (.tar.gz.enc)"
+    echo "[8] Web Status Dashboard & API (Port 9090)"
+    echo "[9] Zurück ins Hauptmenü"
+    read -rp 'Auswahl [1-9]: ' c
+    clear 2>/dev/null || true
+    case "$c" in
+      1) agent_deployment_wizard ;;
+      2) agent_profiles; pause_menu ;;
+      3) policy_manager; pause_menu ;;
+      4) volume_manager; pause_menu ;;
+      5) secrets_manager; pause_menu ;;
+      6) template_manager; pause_menu ;;
+      7) backup_manager; pause_menu ;;
+      8) dashboard_manager; pause_menu ;;
+      9) return 0 ;;
+      *) warn 'Ungültige Auswahl.'; sleep 1 ;;
+    esac
+  done
+}
+
+menu_services(){
+  while true; do
+    clear 2>/dev/null || true
+    echo -e "${CLR_BLUE}=== [4] SERVICES ===${CLR_RESET}"
+    echo "[1] Ollama konfigurieren & starten"
+    echo "[2] Ollama Modell laden (intelligenter RAM-Check)"
+    echo "[3] ComfyUI installieren/starten"
+    echo "[4] Open WebUI installieren/starten"
+    echo "[5] Node-RED + Faster-Whisper"
+    echo "[6] Zurück ins Hauptmenü"
+    read -rp 'Auswahl [1-6]: ' c
+    clear 2>/dev/null || true
+    case "$c" in
+      1) install_ollama; pause_menu ;;
+      2) pull_ollama_model; pause_menu ;;
+      3) install_comfyui; start_comfyui; pause_menu ;;
+      4) install_openwebui; start_openwebui; pause_menu ;;
+      5) install_nodered || true; install_whisper || true; start_nodered || true; pause_menu ;;
+      6) return 0 ;;
+      *) warn 'Ungültige Auswahl.'; sleep 1 ;;
+    esac
+  done
+}
+
+menu_operations(){
+  while true; do
+    clear 2>/dev/null || true
+    echo -e "${CLR_BLUE}=== [5] OPERATIONS & MONITORING ===${CLR_RESET}"
+    echo "[1] Health / Watchdog Check"
+    echo "[2] Installation verifizieren"
+    echo "[3] State / Configuration anzeigen"
+    echo "[4] Automatisierte Testsuite ausführen (100% Validierung)"
+    echo "[5] Dienste stoppen"
+    echo "[6] Logs anzeigen"
+    echo "[7] Zurück ins Hauptmenü"
+    read -rp 'Auswahl [1-7]: ' c
+    clear 2>/dev/null || true
+    case "$c" in
+      1) health_check; pause_menu ;;
+      2) verify_installations; pause_menu ;;
+      3) show_state; pause_menu ;;
+      4) "$SCRIPT_DIR/tests/run_tests.sh"; pause_menu ;;
+      5) stop_services; pause_menu ;;
+      6) view_logs ;;
+      7) return 0 ;;
+      *) warn 'Ungültige Auswahl.'; sleep 1 ;;
+    esac
+  done
+}
+
+# =============================================================================
+# MAIN MENU (TOP-LEVEL CATEGORIES)
 # =============================================================================
 main_menu(){
   termux_handoff
@@ -299,69 +429,22 @@ main_menu(){
     echo "Platform: $PLATFORM | GPU: $GPU_TYPE | Mode: $COMFYUI_MODE"
     echo "Docker: $CAN_DOCKER/$DOCKER_DAEMON | KVM: $CAN_KVM | libvirt: $CAN_LIBVIRT"
     echo
-    echo "HOST"
-    echo "[0]  System / Capability Check (Preflight Matrix)"
-    echo
-    echo "RUNTIMES"
-    echo "[1]  Native Runtime / System Dependencies"
-    echo "[2]  Docker Runtime (Container & Compose Management)"
-    echo "[3]  KVM / VM Runtime (QEMU/libvirt & Snapshots)"
-    echo "[4]  Remote Runtime (SSH Orchestrierung)"
-    echo
-    echo "CONTROL-PLANE MODULES"
-    echo "[5]  Agent Manager / Deployment Wizard"
-    echo "[6]  Agent Profiles (Manifeste)"
-    echo "[7]  Policy Manager (.dax/policy.yaml)"
-    echo "[8]  Volume Manager (.dax/volumes.yaml)"
-    echo "[9]  Secrets Manager (AES-256)"
-    echo "[10] Template Manager"
-    echo "[11] Encrypted Backup & Restore"
-    echo "[12] Web Status Dashboard & API (Port 9090)"
-    echo
-    echo "SERVICES"
-    echo "[13] Ollama konfigurieren & starten"
-    echo "[14] Ollama Modell laden (intelligenter RAM-Check)"
-    echo "[15] ComfyUI installieren/starten"
-    echo "[16] Open WebUI installieren/starten"
-    echo "[17] Node-RED + Faster-Whisper"
-    echo
-    echo "OPERATIONS"
-    echo "[18] Health / Watchdog Check"
-    echo "[19] Installation verifizieren"
-    echo "[20] State / Configuration anzeigen"
-    echo "[21] Automatisierte Testsuite ausführen (100% Validierung)"
-    echo "[22] Dienste stoppen"
-    echo "[23] Logs anzeigen"
-    echo "[24] Beenden"
-    read -rp 'Auswahl [0-24]: ' choice
+    echo "[1] HOST (Preflight Matrix & Hardware Check)"
+    echo "[2] RUNTIMES (Native, Docker, KVM, Remote)"
+    echo "[3] CONTROL-PLANE MODULES (Agents, Policy, Secrets, Backups, Dashboard)"
+    echo "[4] SERVICES (Ollama, ComfyUI, Open WebUI, Node-RED/Whisper)"
+    echo "[5] OPERATIONS (Watchdog, Tests, State, Stop, Logs)"
+    echo "[6] Beenden"
+    read -rp 'Auswahl [1-6]: ' choice
     clear 2>/dev/null || true
     case "$choice" in
-      0) show_preflight; pause_menu;;
-      1) install_system_dependencies; pause_menu;;
-      2) runtime_menu;;
-      3) vm_menu;;
-      4) echo "Remote Runtime: SSH/Orchestrator-Schnittstelle ist bereit."; pause_menu;;
-      5) agent_deployment_wizard;;
-      6) agent_profiles; pause_menu;;
-      7) policy_manager; pause_menu;;
-      8) volume_manager; pause_menu;;
-      9) secrets_manager; pause_menu;;
-      10) template_manager; pause_menu;;
-      11) backup_manager; pause_menu;;
-      12) dashboard_manager; pause_menu;;
-      13) install_ollama; pause_menu;;
-      14) pull_ollama_model; pause_menu;;
-      15) install_comfyui; start_comfyui; pause_menu;;
-      16) install_openwebui; start_openwebui; pause_menu;;
-      17) install_nodered || true; install_whisper || true; start_nodered || true; pause_menu;;
-      18) health_check; pause_menu;;
-      19) verify_installations; pause_menu;;
-      20) show_state; pause_menu;;
-      21) "$SCRIPT_DIR/tests/run_tests.sh"; pause_menu;;
-      22) stop_services; pause_menu;;
-      23) view_logs;;
-      24) exit 0;;
-      *) warn 'Ungültige Auswahl.'; sleep 1;;
+      1) menu_host ;;
+      2) menu_runtimes ;;
+      3) menu_control_plane ;;
+      4) menu_services ;;
+      5) menu_operations ;;
+      6) exit 0 ;;
+      *) warn 'Ungültige Auswahl.'; sleep 1 ;;
     esac
   done
 }
