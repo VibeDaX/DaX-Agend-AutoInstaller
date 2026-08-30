@@ -82,7 +82,8 @@ agent_deployment_wizard(){
   echo "4) Status prüfen"
   echo "5) Health Check"
   echo "6) Logs anzeigen"
-  read -rp "Aktion [1-6]: " act_c
+  echo "7) Deinstallieren"
+  read -rp "Aktion [1-7]: " act_c
   clear 2>/dev/null || true
   local act="status"
   case "$act_c" in
@@ -92,6 +93,7 @@ agent_deployment_wizard(){
     4) act="status" ;;
     5) act="health" ;;
     6) act="logs" ;;
+    7) act="uninstall" ;;
   esac
 
   agent_dispatch "$ag" "$act" "$rt"

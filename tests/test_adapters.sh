@@ -67,4 +67,11 @@ assert_false $? "Dispatch auf unbekannten Agenten schlägt fehl"
 agent_dispatch hermes "invalid_action_xyz" native >/dev/null 2>&1
 assert_false $? "Dispatch mit unbekannter Aktion schlägt fehl"
 
+it "Agent Uninstall-Pfade (Native)"
+agent_dispatch hermes uninstall native >/dev/null 2>&1
+assert_true $? "agent_dispatch hermes uninstall native muss fehlerfrei zurückkehren"
+
+agent_dispatch openclaw uninstall native >/dev/null 2>&1
+assert_true $? "agent_dispatch openclaw uninstall native muss fehlerfrei zurückkehren"
+
 test_module_summary

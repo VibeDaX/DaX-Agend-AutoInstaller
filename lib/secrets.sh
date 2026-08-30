@@ -146,6 +146,8 @@ secrets_manager(){
   echo "Master-Key: $MASTER_KEY_FILE"
   echo "1) Secret setzen"
   echo "2) Secrets anzeigen (Entschlüsselt)"
+  echo "3) Secrets löschen (Scope + Key)"
+  echo "4) Alle Secrets löschen (Master-Key bleibt erhalten)"
   read -rp "Auswahl: " c
   case "$c" in
     1)
@@ -159,6 +161,28 @@ secrets_manager(){
       read -rp "Scope (global/agent/remote): " sc
       read -rp "Identifier: " id
       secret_get_envfile "${sc:-global}" "${id:-global}"
+      ;;
+    3)
+      read -rp "Scope (global/agent/remote): " sc
+      read -rp "Identifier: " id
+      read -rp "Key Name: " k
+      local target_file=""
+      case "$sc" in
+        global) target_file="$GLOBAL_SECRETS" ;;
+        agent) target_file="$AGENT_SECRETS_DIR/${id}.json" ;;
+        remote) target_file="$REMOTE_SECRETS_DIR/${id}.json" ;;
+      esac
+      if [[ -f "$target_file" ]]; then
+        python3 "$SCRIPT_DIR/lib/state_helper.py" json_del_secret "$target_file" "$k" 2>/dev/null || true
+        ok "Secret $k aus $sc/$id gelöscht."
+      else
+        warn "Secret-Datei nicht gefunden: $target_file"
+      fi
+      ;;
+    4)
+      confirm_action "ALLE Secrets löschen? Master-Key bleibt erhalten." || return 0
+      rm -f "$GLOBAL_SECRETS" "$AGENT_SECRETS_DIR"/*.json "$REMOTE_SECRETS_DIR"/*.json 2>/dev/null || true
+      ok "Alle Secrets gelöscht."
       ;;
   esac
 }

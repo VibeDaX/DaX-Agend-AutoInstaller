@@ -45,6 +45,15 @@ install_system_dependencies(){
   ok "System-Basisabhängigkeiten sind bereit."
 }
 
+uninstall_system_dependencies(){
+  require_native_linux || return 0
+  confirm_action "Systempakete entfernen (build-essential, curl, wget, git, python3, pip, venv, openssl, jq, stat)?" || return 0
+  info "Entferne Basis-Systemabhängigkeiten..."
+  $SUDO apt-get remove -y --purge build-essential curl wget git python3 python3-pip python3-venv openssl jq stat >>"$LOG_FILE" 2>&1 || true
+  $SUDO apt-get autoremove -y >>"$LOG_FILE" 2>&1 || true
+  ok "Systempakete entfernt."
+}
+
 install_ollama(){
   info "Konfiguriere Ollama Inferenz-Engine..."
   if command_exists ollama; then
@@ -65,6 +74,23 @@ install_ollama(){
     wait_for_port 11434 30 || warn "Ollama Port 11434 nicht erreichbar."
   fi
   ok "Ollama läuft und ist erreichbar."
+}
+
+uninstall_ollama(){
+  confirm_action "Ollama komplett entfernen (Service, Binär, Modelle)?" || return 0
+  info "Stoppe Ollama Service..."
+  pkill -f "ollama serve" 2>/dev/null || true
+  rm -f "$PID_DIR/ollama.pid"
+  info "Entferne Ollama..."
+  if [[ "$PLATFORM" == "linux" || "$PLATFORM" == "wsl2" ]]; then
+    $SUDO systemctl stop ollama 2>/dev/null || true
+    $SUDO systemctl disable ollama 2>/dev/null || true
+    $SUDO rm -f /usr/local/bin/ollama /usr/local/bin/ollama_runner /usr/local/bin/ollama_llama_server 2>/dev/null || true
+    $SUDO rm -rf /usr/share/ollama /var/lib/ollama /etc/systemd/system/ollama.service 2>/dev/null || true
+    $SUDO userdel -r ollama 2>/dev/null || true
+  fi
+  rm -rf "$HOME/.ollama"
+  ok "Ollama entfernt."
 }
 
 pull_ollama_model(){
@@ -101,6 +127,16 @@ install_comfyui(){
   ok "ComfyUI Installation abgeschlossen."
 }
 
+uninstall_comfyui(){
+  confirm_action "ComfyUI und VENV entfernen ($COMFYUI_DIR, $VENV_COMFYUI)?" || return 0
+  info "Stoppe ComfyUI falls aktiv..."
+  pkill -f "ComfyUI/main.py" 2>/dev/null || true
+  rm -f "$PID_DIR/comfyui.pid"
+  info "Entferne ComfyUI Dateien..."
+  rm -rf "$COMFYUI_DIR" "$VENV_COMFYUI"
+  ok "ComfyUI entfernt."
+}
+
 start_comfyui(){
   [[ -d "$COMFYUI_DIR" ]] || { warn "ComfyUI nicht installiert."; return 1; }
   info "Starte ComfyUI..."
@@ -124,6 +160,16 @@ install_openwebui(){
   ok "Open WebUI erfolgreich installiert."
 }
 
+uninstall_openwebui(){
+  confirm_action "Open WebUI und VENV entfernen ($VENV_OPENWEBUI)?" || return 0
+  info "Stoppe Open WebUI falls aktiv..."
+  pkill -f "open-webui serve" 2>/dev/null || true
+  rm -f "$PID_DIR/openwebui.pid"
+  info "Entferne Open WebUI VENV..."
+  rm -rf "$VENV_OPENWEBUI"
+  ok "Open WebUI entfernt."
+}
+
 start_openwebui(){
   [[ -d "$VENV_OPENWEBUI" ]] || { warn "Open WebUI nicht installiert."; return 1; }
   info "Starte Open WebUI..."
@@ -145,6 +191,18 @@ install_nodered(){
   fi
 }
 
+uninstall_nodered(){
+  confirm_action "Node-RED global entfernen (npm uninstall)?" || return 0
+  info "Stoppe Node-RED falls aktiv..."
+  pkill -f "node-red" 2>/dev/null || true
+  rm -f "$PID_DIR/nodered.pid"
+  info "Entferne Node-RED..."
+  if command_exists npm; then
+    $SUDO npm uninstall -g --unsafe-perm node-red 2>/dev/null || true
+  fi
+  ok "Node-RED entfernt."
+}
+
 install_whisper(){
   info "Installiere Faster-Whisper..."
   if [[ ! -d "$VENV_WHISPER" ]]; then
@@ -154,6 +212,14 @@ install_whisper(){
   pip install faster-whisper
   deactivate
   ok "Faster-Whisper installiert."
+}
+
+uninstall_whisper(){
+  confirm_action "Faster-Whisper und VENV entfernen ($VENV_WHISPER)?" || return 0
+  info "Entferne Faster-Whisper VENV..."
+  pkill -f "faster-whisper" 2>/dev/null || true
+  rm -rf "$VENV_WHISPER"
+  ok "Faster-Whisper entfernt."
 }
 
 start_nodered(){
@@ -185,6 +251,24 @@ install_docker(){
   persist_runtime_state
 }
 
+uninstall_docker(){
+  require_native_linux || return 0
+  confirm_action "Docker und Compose komplett entfernen?" || return 0
+  info "Stoppe Docker Stack falls aktiv..."
+  [[ -f "$DOCKER_DIR/compose.yml" ]] && (cd "$DOCKER_DIR" && docker compose down 2>/dev/null) || true
+  pkill -f "docker compose" 2>/dev/null || true
+  info "Entferne Docker Pakete..."
+  $SUDO systemctl stop docker 2>/dev/null || true
+  $SUDO systemctl disable docker 2>/dev/null || true
+  $SUDO apt-get remove -y --purge docker.io docker-compose-plugin >>"$LOG_FILE" 2>&1 || true
+  $SUDO apt-get autoremove -y >>"$LOG_FILE" 2>&1 || true
+  $SUDO rm -rf /var/lib/docker /etc/docker /var/run/docker.sock 2>/dev/null || true
+  rm -f "$PID_DIR"/*.pid
+  detect_runtime_capabilities true
+  persist_runtime_state
+  ok "Docker entfernt."
+}
+
 runtime_menu(){
   clear 2>/dev/null || true
   echo "=== DOCKER RUNTIME MANAGEMENT ==="
@@ -192,7 +276,8 @@ runtime_menu(){
   echo "2) Shared Context & Dockerfiles initialisieren"
   echo "3) Stack starten (docker compose up -d)"
   echo "4) Stack stoppen"
-  echo "5) Zurück"
+  echo "5) Docker deinstallieren"
+  echo "6) Zurück"
   read -rp "Auswahl: " c
   clear 2>/dev/null || true
   case "$c" in
@@ -200,7 +285,8 @@ runtime_menu(){
     2) docker_context_init; pause_menu ;;
     3) [[ -f "$DOCKER_DIR/compose.yml" ]] && (cd "$DOCKER_DIR" && docker compose up -d); pause_menu ;;
     4) [[ -f "$DOCKER_DIR/compose.yml" ]] && (cd "$DOCKER_DIR" && docker compose down); pause_menu ;;
-    5) return 0 ;;
+    5) uninstall_docker; pause_menu ;;
+    6) return 0 ;;
   esac
 }
 
@@ -209,13 +295,22 @@ vm_menu(){
   echo "=== KVM / VM RUNTIME MANAGEMENT ==="
   echo "1) KVM & libvirt Pakete installieren"
   echo "2) VM Status abfragen"
-  echo "3) Zurück"
+  echo "3) KVM deinstallieren"
+  echo "4) Zurück"
   read -rp "Auswahl: " c
   clear 2>/dev/null || true
   case "$c" in
     1) apt_install qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils; pause_menu ;;
     2) command_exists virsh && virsh list --all || echo "virsh nicht verfügbar."; pause_menu ;;
-    3) return 0 ;;
+    3)
+      confirm_action "KVM & libvirt Pakete entfernen?" || return 0
+      info "Entferne KVM & libvirt..."
+      $SUDO apt-get remove -y --purge qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils >>"$LOG_FILE" 2>&1 || true
+      $SUDO apt-get autoremove -y >>"$LOG_FILE" 2>&1 || true
+      ok "KVM & libvirt entfernt."
+      pause_menu
+      ;;
+    4) return 0 ;;
   esac
 }
 

@@ -29,4 +29,16 @@ template_manager(){
   echo
   echo "Remote Templates:"
   ls -1 "$TEMPLATE_DIR/remote" 2>/dev/null || true
+  echo
+  echo "1) Templates anzeigen"
+  echo "2) Compose zurücksetzen (docker/compose.yml löschen)"
+  read -rp "Auswahl: " c
+  case "$c" in
+    1) ;;
+    2)
+      confirm_action "docker/compose.yml wirklich löschen?" || return 0
+      rm -f "$DOCKER_DIR/compose.yml"
+      ok "docker/compose.yml gelöscht."
+      ;;
+  esac
 }

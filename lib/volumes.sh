@@ -67,4 +67,27 @@ volume_mount_docker(){
 volume_manager(){
   echo "=== VOLUME MANAGER ==="
   [[ -f "$VOLUMES_FILE" ]] && cat "$VOLUMES_FILE" || echo "Keine volumes.yaml gefunden."
+  echo
+  echo "1) Volumes anzeigen"
+  echo "2) Volume bereitstellen"
+  echo "3) Volume entfernen"
+  read -rp "Auswahl: " c
+  case "$c" in
+    1) cat "$VOLUMES_FILE" 2>/dev/null || echo "Keine volumes.yaml gefunden." ;;
+    2)
+      read -rp "Volume Name (hermes_data/openclaw_data/ollama_data): " vol
+      volume_ensure "$vol"
+      ;;
+    3)
+      read -rp "Volume Name zum Entfernen: " vol
+      confirm_action "Volume $vol und Daten wirklich löschen?" || return 0
+      case "$vol" in
+        hermes_data) rm -rf /var/lib/dax/hermes ;;
+        openclaw_data) rm -rf /var/lib/dax/openclaw ;;
+        ollama_data) rm -rf /var/lib/dax/ollama ;;
+        *) warn "Unbekanntes Volume: $vol"; return 1 ;;
+      esac
+      ok "Volume $vol entfernt."
+      ;;
+  esac
 }
