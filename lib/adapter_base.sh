@@ -47,6 +47,11 @@ adapter_base_install(){
       die "$agent Installation fehlgeschlagen."
   }
 
+  if ! "$venv/bin/python" -c "import yaml" 2>/dev/null; then
+    info "PyYAML fehlt — installiere als Dependency für $agent..."
+    "$venv/bin/python" -m pip install $pip_flags pyyaml >>"$LOG_FILE" 2>&1 || true
+  fi
+
   if [[ -x "${AGENT_EXEC:-$venv/bin/$agent}" ]]; then
     info "Führe $agent postinstall aus..."
     "${AGENT_EXEC:-$venv/bin/$agent}" postinstall >>"$LOG_FILE" 2>&1 || true
@@ -54,7 +59,7 @@ adapter_base_install(){
 
   if command_exists npx; then
     info "Installiere Playwright Chromium für Browser-Tools..."
-    npx playwright install chromium >>"$LOG_FILE" 2>&1 || true
+    yes | npx playwright install chromium >>"$LOG_FILE" 2>&1 || true
   fi
 
   ok "$agent Agent (Native) erfolgreich installiert in: $venv"
