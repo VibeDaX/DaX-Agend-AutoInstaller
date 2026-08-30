@@ -1,80 +1,108 @@
-# DAX Control Plane Bundle
+# 🤖 DAX Command Center & Control Plane (v6.3)
 
-Komplettes DAX Command Center als Control-Plane-Architektur — Policy Engine, Agent-Adapter-System, Watchdog, Remote Runtime, Secrets Manager, Volume Manager und Template Engine.
+Ein hochmodulares, produktionsreifes **Management- und Orchestrierungs-Framework** für autonome KI-Agenten (**Hermes 2.0**, **OpenClaw**, **AntiGravity**), lokale LLMs (**Ollama**), Bild- & Workflow-GUIs (**ComfyUI**, **Open WebUI**) und Automationsdienste (**Node-RED**, **Faster-Whisper**).
 
-## Struktur
+---
+
+## 🚀 Key Features
+
+* **Multi-Runtime Control Plane:** Nahtlose Bereitstellung über **Native (Python VENVs)**, **Docker (isolierte, gehärtete Container)**, **KVM/QEMU (virtuelle Maschinen)** und **Remote Hosts (SSH-Orchestrierung)**.
+* **Hardware & Preflight Matrix:** Automatische Erkennung der Plattform (Debian/Ubuntu, WSL2, Termux, PRoot) und Beschleuniger-Hardware (NVIDIA CUDA, AMD ROCm, Intel Arc XPU, Apple Silicon MPS).
+* **Policy Engine (`.dax/policy.yaml`):** Plattform- und agentenbasierte Sicherheitsrichtlinien verhindern inkompatible oder ungesicherte Runtime-Starts.
+* **Sichere Secrets-Verwaltung (`.dax/secrets/`):** Scoped Secrets (global, agentenspezifisch, remote) mit AES-256 Verschlüsselung über Master-Key (`master.key`).
+* **Volume Manager (`.dax/volumes.yaml`):** Verwaltet persistente Speicherpfade und Docker-Bind-Mounts mit Berechtigungsverwaltung.
+* **Watchdog & Self-Healing:** Überwacht laufende Dienste kontinuierlich, führt Health-Checks durch und triggert automatische Wiederherstellungsmaßnahmen bei Ausfällen.
+* **Template Engine (`templates/`):** Vordefinierte Stacks für Docker Compose, KVM-VMs und Remote-Setups.
+* **Automated Test Suite (`tests/`):** Vollständige Test-Abdeckung mit 7 Modulen und 100% Erfolgs-Reporting (`./tests/run_tests.sh`).
+
+---
+
+## 📊 Systemanforderungen
+
+| Komponente | Mindestanforderung | Empfohlen |
+| :--- | :--- | :--- |
+| **Betriebssystem** | Linux (Debian/Ubuntu), WSL2 oder PRoot | Ubuntu 22.04 / 24.04 LTS nativ |
+| **Arbeitsspeicher** | Min. 4 GB RAM | 16 GB+ RAM (für lokale LLMs & ComfyUI) |
+| **GPU-Beschleunigung** | Optional (CPU Safe Mode vorhanden) | NVIDIA GPU (CUDA) oder AMD (ROCm) |
+| **Virtualisierung** | Optional | KVM / `/dev/kvm` für VM-Isolierung |
+| **Docker** | Optional | Docker Engine + Docker Compose V2 |
+
+---
+
+## 🛠️ Schnellstart
+
+1. Ausführrechte setzen:
+   ```bash
+   chmod +x start.sh dax.sh tests/*.sh
+   ```
+
+2. Command Center starten:
+   ```bash
+   ./start.sh
+   # oder direkt:
+   ./dax.sh
+   ```
+
+3. Automatisierte Testsuite ausführen:
+   ```bash
+   ./tests/run_tests.sh
+   ```
+
+---
+
+## 📋 Modul-Übersicht (Hauptmenü)
 
 ```text
-dax-control-plane/
-  dax.sh                      # Hauptscript (Command Center v6.3 + Erweiterungen)
-  .dax/
-    policy.yaml               # Policy Engine
-    volumes.yaml              # Volume Manager
-    remote_hosts.yaml         # Remote Runtime Hosts
-    secrets/
-      master.key              # AES-256-GCM Key
-      secrets.json            # globale Secrets
-      agents/
-        hermes.json
-        openclaw.json
-      remote/
-        lab01.json
-    watchdog.json             # Watchdog State
-  agents/
-    hermes/
-      manifest.yaml
-      adapters/
-        native.sh
-        docker.sh
-        kvm.sh
-        remote.sh
-    openclaw/
-      manifest.yaml
-      adapters/
-        native.sh
-        docker.sh
-        kvm.sh
-        remote.sh
-  templates/
-    vm/
-      ubuntu-small.yaml
-      ubuntu-gpu.yaml
-    agents/
-      hermes-stack.yaml
-      openclaw-stack.yaml
-    compose/
-      ollama-comfyui.yaml
-      full-stack.yaml
-    remote/
-      lab01-hermes.yaml
-  logs/
-    installation.log
-    watchdog.log
-  backups/
-    README.md
+HOST
+  [0]  System / Capability Check (Preflight Matrix)
+
+RUNTIMES
+  [1]  Native Runtime / System Dependencies
+  [2]  Docker Runtime (Container & Compose Management)
+  [3]  KVM / VM Runtime (QEMU/libvirt & Snapshots)
+  [4]  Remote Runtime (SSH Orchestrierung)
+
+CONTROL-PLANE MODULES
+  [5]  Agent Manager / Deployment Wizard
+  [6]  Agent Profiles (Manifeste)
+  [7]  Policy Manager
+  [8]  Volume Manager
+  [9]  Secrets Manager (AES-256)
+  [10] Template Manager
+
+SERVICES
+  [11] Ollama konfigurieren & starten
+  [12] Ollama Modell laden (intelligenter RAM-Check)
+  [13] ComfyUI installieren/starten
+  [14] Open WebUI installieren/starten
+  [15] Node-RED + Faster-Whisper
+
+OPERATIONS
+  [16] Health / Watchdog Check
+  [17] Installation verifizieren
+  [18] State / Configuration anzeigen
+  [19] Automatisierte Testsuite ausführen (100% Validierung)
+  [20] Dienste stoppen
+  [21] Logs anzeigen
+  [22] Beenden
 ```
 
-## Schnellstart
+---
 
+## 🔍 Diagnose & Logs
+
+Alle Vorgänge werden detailliert protokolliert:
+* **Installations- & Runtime-Log:** `./logs/installation.log`
+* **Watchdog- & Health-Log:** `./logs/watchdog.log`
+
+Live-Protokoll ansehen:
 ```bash
-cd dax-control-plane
-chmod +x dax.sh
-./dax.sh
+tail -f logs/installation.log
 ```
 
-## Module
+---
 
-- **Policy Engine** — Plattform- und Agent-Runtime-Richtlinien (.dax/policy.yaml)
-- **Agent-Adapter-System** — Einheitliche Adapter-Schnittstelle für native/docker/kvm/remote
-- **Watchdog** — Health-State-Tracking (.dax/watchdog.json)
-- **Remote Runtime** — SSH-basierte Remote-Exec-Schnittstelle (.dax/remote_hosts.yaml)
-- **Secrets Manager** — Globale + agentenspezifische Secrets (.dax/secrets/)
-- **Volume Manager** — Docker-Bind-Mount-Definitionen (.dax/volumes.yaml)
-- **Template Engine** — VM-, Agent-, Compose- und Remote-Templates (templates/)
+## 🛡️ Lizenz & Entwickler
 
-## Anforderungen
-
-- Linux (Debian/Ubuntu empfohlen), WSL2 oder Termux/PRoot
-- Python 3, pip, venv
-- Docker (optional, für Kontainer-Runtime)
-- KVM/QEMU + libvirt (optional, für VM-Runtime)
+* **Developer:** DAX / War Room Command Network
+* **Version:** v6.3 Control-Plane Edition

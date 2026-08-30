@@ -9,10 +9,11 @@ Ein hochmodulares, produktionsreifes **Management- und Orchestrierungs-Framework
 * **Multi-Runtime Control Plane:** Nahtlose Bereitstellung über **Native (Python VENVs)**, **Docker (isolierte, gehärtete Container)**, **KVM/QEMU (virtuelle Maschinen)** und **Remote Hosts (SSH-Orchestrierung)**.
 * **Hardware & Preflight Matrix:** Automatische Erkennung der Plattform (Debian/Ubuntu, WSL2, Termux, PRoot) und Beschleuniger-Hardware (NVIDIA CUDA, AMD ROCm, Intel Arc XPU, Apple Silicon MPS).
 * **Policy Engine (`.dax/policy.yaml`):** Plattform- und agentenbasierte Sicherheitsrichtlinien verhindern inkompatible oder ungesicherte Runtime-Starts.
-* **Sichere Secrets-Verwaltung (`.dax/secrets/`):** Scoped Secrets (global, agentenspezifisch, remote) mit AES-256 Verschlüsselung über Master-Key.
+* **Sichere Secrets-Verwaltung (`.dax/secrets/`):** Scoped Secrets (global, agentenspezifisch, remote) mit AES-256 Verschlüsselung über Master-Key (`master.key`).
 * **Volume Manager (`.dax/volumes.yaml`):** Verwaltet persistente Speicherpfade und Docker-Bind-Mounts mit Berechtigungsverwaltung.
 * **Watchdog & Self-Healing:** Überwacht laufende Dienste kontinuierlich, führt Health-Checks durch und triggert automatische Wiederherstellungsmaßnahmen bei Ausfällen.
 * **Template Engine (`templates/`):** Vordefinierte Stacks für Docker Compose, KVM-VMs und Remote-Setups.
+* **Automated Test Suite (`tests/`):** Vollständige Test-Abdeckung mit 7 Modulen und 100% Erfolgs-Reporting (`./tests/run_tests.sh`).
 
 ---
 
@@ -32,7 +33,7 @@ Ein hochmodulares, produktionsreifes **Management- und Orchestrierungs-Framework
 
 1. Ausführrechte setzen:
    ```bash
-   chmod +x start.sh dax.sh
+   chmod +x start.sh dax.sh tests/*.sh
    ```
 
 2. Command Center starten:
@@ -42,26 +43,31 @@ Ein hochmodulares, produktionsreifes **Management- und Orchestrierungs-Framework
    ./dax.sh
    ```
 
+3. Automatisierte Testsuite ausführen:
+   ```bash
+   ./tests/run_tests.sh
+   ```
+
 ---
 
 ## 📋 Modul-Übersicht (Hauptmenü)
 
 ```text
 HOST
-  [0] System / Capability Check (Preflight Matrix)
+  [0]  System / Capability Check (Preflight Matrix)
 
 RUNTIMES
-  [1] Native Runtime / System Dependencies
-  [2] Docker Runtime (Container & Compose Management)
-  [3] KVM / VM Runtime (QEMU/libvirt & Snapshots)
-  [4] Remote Runtime (SSH Orchestrierung)
+  [1]  Native Runtime / System Dependencies
+  [2]  Docker Runtime (Container & Compose Management)
+  [3]  KVM / VM Runtime (QEMU/libvirt & Snapshots)
+  [4]  Remote Runtime (SSH Orchestrierung)
 
 CONTROL-PLANE MODULES
-  [5] Agent Manager / Deployment Wizard
-  [6] Agent Profiles (Manifeste)
-  [7] Policy Manager
-  [8] Volume Manager
-  [9] Secrets Manager
+  [5]  Agent Manager / Deployment Wizard
+  [6]  Agent Profiles (Manifeste)
+  [7]  Policy Manager
+  [8]  Volume Manager
+  [9]  Secrets Manager (AES-256)
   [10] Template Manager
 
 SERVICES
@@ -75,9 +81,10 @@ OPERATIONS
   [16] Health / Watchdog Check
   [17] Installation verifizieren
   [18] State / Configuration anzeigen
-  [19] Dienste stoppen
-  [20] Logs anzeigen
-  [21] Beenden
+  [19] Automatisierte Testsuite ausführen (100% Validierung)
+  [20] Dienste stoppen
+  [21] Logs anzeigen
+  [22] Beenden
 ```
 
 ---

@@ -37,7 +37,7 @@ Verhindert unautorisierte oder für die Plattform ungeeignete Ausführungen:
 * Agenten-Beschränkungen (z. B. welche Runtimes für Hermes oder OpenClaw freigegeben sind).
 
 #### 1.2 Secrets Manager (`.dax/secrets/`)
-Verwaltet sensible Daten mit Scopes (`global`, `agent`, `remote`). Die Daten werden über OpenSSL mit dem Master-Key (`master.key`) verschlüsselt und zur Laufzeit entschlüsselt.
+Verwaltet sensible Daten mit Scopes (`global`, `agent`, `remote`). Die Daten werden über OpenSSL mit dem Master-Key (`master.key`) per AES-256 verschlüsselt und zur Laufzeit on-the-fly entschlüsselt.
 
 #### 1.3 Volume Manager (`.dax/volumes.yaml`)
 Definiert persistente Host-Pfade (`/var/lib/dax/*`) und erzeugt Docker-Bind-Mount-Parameter (`-v <host>:<container>:rw`) mit sauberen Berechtigungen.
@@ -47,10 +47,21 @@ Jeder Agent implementiert eine einheitliche Schnittstelle:
 * `adapter_install()`: Richtet Abhängigkeiten, VENVs oder Docker-Images ein.
 * `adapter_start()`: Startet den Dienst im Hintergrund mit PID-Tracking.
 * `adapter_stop()`: Beendet den Prozess ordnungsgemäß.
-* `adapter_status()`: Gibt den aktuellen Betriebszustand aus.
+* `adapter_status()`: Gibt den aktuellen Betriebszustand aus (`RUNNING` / `STOPPED`).
 * `adapter_logs()`: Zeigt relevante Protokolle.
 * `adapter_health()`: Liefert standardisiert `HEALTHY` oder `STOPPED`.
 * `adapter_uninstall()`: Bereinigt Daten und Umgebungen.
+
+#### 1.5 Automated Test Suite (`tests/`)
+Modulare Testsuite mit 7 Modulen zur kontinuierlichen Qualitätssicherung:
+* `test_preflight.sh`: Hardware-, GPU- und OS-Erkennung.
+* `test_policy.sh`: Plattform- und Agenten-Restriktionen.
+* `test_secrets.sh`: AES-256 Ver- und Entschlüsselung & Scopes.
+* `test_volumes.sh`: Volume-Provisioning & Mount-Parameter.
+* `test_templates.sh`: Compose-, VM- und Agenten-Templates.
+* `test_adapters.sh`: Adapter-Schnittstellen und Dispatch-Logik.
+* `test_watchdog.sh`: Health-Ticks, Status und Auto-Recovery.
+* Ausführung via `./tests/run_tests.sh` oder Menüpunkt **[19]**.
 
 ---
 

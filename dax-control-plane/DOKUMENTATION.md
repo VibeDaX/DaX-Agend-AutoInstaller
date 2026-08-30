@@ -1,105 +1,86 @@
-## 📖 DAX Control Plane Dokumentation
+## 📖 DAX Control Plane Dokumentation & Betriebs-Handbuch
 
-**Version:** v6.3-control-plane
-
-**Architektur:** Bash / Linux Shell Execution
-
----
-
-### 1. Architektur & Funktionsweise
-
-Das DAX Control Plane Bundle ist ein modulares Steuerungswerkzeug für Linux-Systeme, das mehrere Runtime- und Agenten-management-Komponenten in einer einheitlichen Control-Plane-Hierarchie vereint.
-
-#### Host
-- Native Runtime (Systemdienste, Python/VENV, direkt gestartete Daemons)
-- Docker Runtime (Kontainer, Compose, Agent-Images)
-- KVM/QEMU Runtime (VMs über libvirt/virt-install)
-- Remote Runtime (SSH-basierte Remote-Exec-Schnittstelle)
-
-#### Control-Plane-Module
-
-- **Policy Engine**: `.dax/policy.yaml` definiert, welche Runtimes auf welcher Plattform erlaubt/verboten sind, und welche Runtimes pro Agent erlaubt sind. Funktionsweise: `policy_allow_runtime_for_platform runtime` und `policy_allow_runtime_for_agent agent runtime`.
-- **Agent-Adapter-System**: Jeder Agent (`agents/*/manifest.yaml`) definiert unterstützte Runtimes, Default-Runtime und angehängte Volumes. Adapter-Skripte (`adapters/{runtime}.sh`) implementieren die Einheitsschnittstelle. Der Dispatch-Mechanismus `agent_dispatch agent action runtime` wählt den richtigen Adapter aus.
-- **Watchdog**: `.dax/watchdog.json` speichert Health-Status und Wiederholungsversuche je Service/Agent. `watchdog_tick service status` aktualisiert den State.
-- **Remote Runtime**: `.dax/remote_hosts.yaml` listet Remote-Hosts mit Host, User, Port und Tags. `remote_exec host_id cmd` führt Befehle per SSH aus.
-- **Secrets Manager**: `.dax/secrets/` enthält global secrets.json, agentenspezifische JSONs und remote-Host-Secrets. `secret_set key value` und `secret_get key`.
-- **Volume Manager**: `.dax/volumes.yaml` definiert Volume-Klassen (agent_data, cache) und konkrete Volumes mit Host-Pfad, Container-Pfad, Typ (docker_bind), Owner und Mode. `volume_ensure vol` und `volume_mount_docker vol`.
-- **Template Engine**: Templates in `templates/` für VMs, Agent-Stacks, Compose-Dateien, Remote-Hosts. Wird vom jeweiligen Manager-Kontext konsumiert.
+**Version:** v6.3 Control-Plane Edition  
+**Architektur:** Modular Bash / Shell Orchestration & Multi-Runtime Control Plane  
 
 ---
 
-### 2. Menü-Übersicht (Main Menu)
+### 1. Architektur & Kern-Module
+
+Das DAX Command Center steuert autonome KI-Agenten und ML-Dienste über eine Schichten-Architektur:
 
 ```
-HOST
-  [0] System / Capability Check
-
-RUNTIMES
-  [1] Native Runtime / System Dependencies
-  [2] Docker Runtime
-  [3] KVM / VM Runtime
-  [4] Remote Runtime
-
-CONTROL-PLANE MODULES
-  [5] Agent Manager / Deployment Wizard
-  [6] Agent Profiles
-  [7] Policy Manager
-  [8] Volume Manager
-  [9] Secrets Manager
-  [10] Template Manager
-
-SERVICES
-  [11] Ollama konfigurieren
-  [12] Ollama Modell laden
-  [13] ComfyUI installieren/starten
-  [14] Open WebUI installieren/starten
-  [15] Node-RED + Faster-Whisper
-
-OPERATIONS
-  [16] Health / Watchdog Check
-  [17] Installation verifizieren
-  [18] State / Configuration anzeigen
-  [19] Dienste stoppen
-  [20] Logs anzeigen
-  [21] Beenden
+                  ┌─────────────────────────────────┐
+                  │    DAX Command Center (dax.sh)  │
+                  └────────────────┬────────────────┘
+                                   │
+      ┌────────────────────────────┼────────────────────────────┐
+      ▼                            ▼                            ▼
+┌──────────────┐             ┌──────────────┐             ┌──────────────┐
+│ Policy Engine│             │Secrets Engine│             │Volume Manager│
+│(.dax/policy) │             │(.dax/secrets)│             │(.dax/volumes)│
+└──────┬───────┘             └──────┬───────┘             └──────┬───────┘
+       │                            │                            │
+       └────────────────────────────┼────────────────────────────┘
+                                   │
+      ┌────────────────────────────┼────────────────────────────┐
+      ▼                            ▼                            ▼
+┌──────────────┐             ┌──────────────┐             ┌──────────────┐
+│Native Runtime│             │Docker Runtime│             │ KVM/QEMU VM  │
+│(Python VENVs)│             │(Containers)  │             │(libvirt/QCOW)│
+└──────────────┘             └──────────────┘             └──────────────┘
 ```
 
+#### 1.1 Policy Engine (`.dax/policy.yaml`)
+Verhindert unautorisierte oder für die Plattform ungeeignete Ausführungen:
+* Plattform-Beschränkungen (z. B. kein KVM auf WSL2, kein Docker auf Termux/PRoot).
+* Agenten-Beschränkungen (z. B. welche Runtimes für Hermes oder OpenClaw freigegeben sind).
+
+#### 1.2 Secrets Manager (`.dax/secrets/`)
+Verwaltet sensible Daten mit Scopes (`global`, `agent`, `remote`). Die Daten werden über OpenSSL mit dem Master-Key (`master.key`) per AES-256 verschlüsselt und zur Laufzeit on-the-fly entschlüsselt.
+
+#### 1.3 Volume Manager (`.dax/volumes.yaml`)
+Definiert persistente Host-Pfade (`/var/lib/dax/*`) und erzeugt Docker-Bind-Mount-Parameter (`-v <host>:<container>:rw`) mit sauberen Berechtigungen.
+
+#### 1.4 Agent-Adapter-System (`agents/<agent>/adapters/`)
+Jeder Agent implementiert eine einheitliche Schnittstelle:
+* `adapter_install()`: Richtet Abhängigkeiten, VENVs oder Docker-Images ein.
+* `adapter_start()`: Startet den Dienst im Hintergrund mit PID-Tracking.
+* `adapter_stop()`: Beendet den Prozess ordnungsgemäß.
+* `adapter_status()`: Gibt den aktuellen Betriebszustand aus (`RUNNING` / `STOPPED`).
+* `adapter_logs()`: Zeigt relevante Protokolle.
+* `adapter_health()`: Liefert standardisiert `HEALTHY` oder `STOPPED`.
+* `adapter_uninstall()`: Bereinigt Daten und Umgebungen.
+
+#### 1.5 Automated Test Suite (`tests/`)
+Modulare Testsuite mit 7 Modulen zur kontinuierlichen Qualitätssicherung:
+* `test_preflight.sh`: Hardware-, GPU- und OS-Erkennung.
+* `test_policy.sh`: Plattform- und Agenten-Restriktionen.
+* `test_secrets.sh`: AES-256 Ver- und Entschlüsselung & Scopes.
+* `test_volumes.sh`: Volume-Provisioning & Mount-Parameter.
+* `test_templates.sh`: Compose-, VM- und Agenten-Templates.
+* `test_adapters.sh`: Adapter-Schnittstellen und Dispatch-Logik.
+* `test_watchdog.sh`: Health-Ticks, Status und Auto-Recovery.
+* Ausführung via `./tests/run_tests.sh` oder Menüpunkt **[19]**.
+
 ---
 
-### 3. Agent-Manifest-Kontrakt
+### 2. Standard-Ports & Schnittstellen
 
-Jedes `agents/*/manifest.yaml` kann definieren:
-
-- `name`, `version`
-- `supported_runtimes` (Liste)
-- `default_runtime`
-- `volumes` (Liste)
-- `resources` (cpus, memory)
-- `security` (non_root, no_new_privileges, cap_drop_all)
-- `network` (mode)
-- `healthcheck` (enabled)
+| Dienst | Port | Schnittstelle |
+| :--- | :--- | :--- |
+| **Ollama Local LLM** | `11434` | `http://localhost:11434` |
+| **ComfyUI Image Engine** | `8188` | `http://localhost:8188` |
+| **Open WebUI Chat** | `8080` | `http://localhost:8080` |
+| **Node-RED Automation** | `1880` | `http://localhost:1880` |
+| **Faster-Whisper STT** | `8000` | `http://localhost:8000` (Docker API) |
 
 ---
 
-### 4. Adapter-Schnittstelle
+### 3. Log- & Watchdog-System
 
-Jeder `adapters/{runtime}.sh` stellt folgende Funktionen bereit:
+Alle Aktionen werden in `./logs/` abgelegt:
+* `installation.log`: Terminal-Ausgaben, Installations-Logs und Befehlsausführungen.
+* `watchdog.log`: Healthcheck-Ergebnisse und Auto-Recovery-Aktionen.
 
-- `adapter_install()`
-- `adapter_start()`
-- `adapter_stop()`
-- `adapter_status()`
-- `adapter_logs()`
-- `adapter_health()`
-- `adapter_uninstall()`
-
-Der Dispatch-Mechanismus (`agent_dispatch`) quillt den richtigen Adapter basierend auf Agent-Manifest und Policy.
-
----
-
-### 5. Wartung & Erweiterung
-
-- **Neuen Agenten hinzufügen**: `agents/<name>/manifest.yaml` anlegen, `agents/<name>/adapters/` mit den gewünschten Runtime-Adaptern befüllen.
-- **Neues Runtime-Ziel**: Neuer Adapter unter `agents/<name>/adapters/<runtime>.sh` + Policy-Eintrag in `.dax/policy.yaml`.
-- **Remote-Hosts**: `.dax/remote_hosts.yaml` erweitern.
-- **Templates**: Neue YAML-Dateien unter `templates/<category>/` ablegen; Compose-Templates werden von `template_apply_compose` direkt auf `docker/compose.yml` kopiert.
+Log-Stufen: `[INFO]`, `[OK]`, `[WARN]`, `[ERROR]`, `[RECOVERY]`.

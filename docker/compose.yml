@@ -1,0 +1,42 @@
+services:
+  ollama:
+    image: "ollama/ollama:latest"
+    volumes:
+      - "ollama_data"
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+  comfyui:
+    image: "ghcr.io/comfy-org/comfyui:latest"
+    volumes:
+      - "comfyui_data:/app/ComfyUI/output"
+    ports:
+      - "8188:8188"
+    restart: unless-stopped
+
+  openwebui:
+    image: "ghcr.io/open-webui/open-webui:main"
+    volumes:
+      - "openwebui_data:/app/backend/data"
+    ports:
+      - "8080:8080"
+    environment:
+      - "OLLAMA_BASE_URL=http://ollama:11434"
+    restart: unless-stopped
+
+  hermes:
+    image: "dax/hermes:baseline"
+    volumes:
+      - "hermes_data"
+    environment:
+      - "OLLAMA_HOST=http://ollama:11434"
+    restart: unless-stopped
+
+  openclaw:
+    image: "dax/openclaw:baseline"
+    volumes:
+      - "openclaw_data"
+    environment:
+      - "OPENCLAW_MODE=production"
+    restart: unless-stopped

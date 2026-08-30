@@ -9,6 +9,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 ## [v6.3-control-plane] - 2026-08-30
 
 ### Hinzugefügt
+- **Automated Test Suite (100% Validierung)**: Vollständige Testsuite (`tests/run_tests.sh`) mit 7 Modulen für Preflight, Policy, Secrets, Volumes, Templates, Adapters und Watchdog.
 - **Control-Plane-Architektur**: Vollständige Modularisierung in Policy Engine, Agent-Adapter-System, Watchdog, Remote Runtime, Secrets Manager, Volume Manager, Template Engine.
 - **Konsolidierung des Hauptverzeichnisses**: `dax.sh` als primäres Command-Center mit `start.sh` Entry-Point.
 - **Hardware- & Platform-Detection**: Automatische Erkennung von Linux, WSL2, Termux, PRoot und GPU-Beschleunigern (NVIDIA CUDA, AMD ROCm, Intel Arc XPU, Apple Silicon MPS).
