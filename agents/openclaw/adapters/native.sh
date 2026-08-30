@@ -12,6 +12,7 @@ AGENT_PID_FILE="${PID_DIR}/openclaw.pid"
 AGENT_EXEC="$AGENT_VENV/bin/openclaw"
 AGENT_MODULE="openclaw"
 AGENT_PIP_PACKAGE="openclaw"
+AGENT_HAS_POSTINSTALL=false
 AGENT_INSTALL_CMDS=(
   "$AGENT_VENV/bin/python -m pip install --ignore-requires-python git+https://github.com/openclaw/openclaw.git"
 )

@@ -80,7 +80,7 @@ adapter_base_install(){
     "$venv/bin/python" -m pip install $pip_flags pyyaml >>"$LOG_FILE" 2>&1 || true
   fi
 
-  if [[ -x "${AGENT_EXEC:-$venv/bin/$agent}" ]]; then
+  if [[ "${AGENT_HAS_POSTINSTALL:-true}" == "true" && -x "${AGENT_EXEC:-$venv/bin/$agent}" ]]; then
     info "Führe $agent postinstall aus (Timeout: 120s, non-interactive)..."
     echo -e "n\nn" | timeout 120 "${AGENT_EXEC:-$venv/bin/$agent}" postinstall >>"$LOG_FILE" 2>&1 || true
   fi
