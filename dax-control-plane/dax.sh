@@ -425,9 +425,17 @@ main_menu(){
     echo -e "${CLR_BLUE}╔════════════════════════════════════════════════════════════╗${CLR_RESET}"
     echo -e "${CLR_BLUE}║${CLR_GOLD}           DAX COMMAND CENTER v$VERSION            ${CLR_BLUE}║${CLR_RESET}"
     echo -e "${CLR_BLUE}║${CLR_GOLD}      CONTROL-PLANE EDITION (Policy/Adapter/Watchdog)       ${CLR_BLUE}║${CLR_RESET}"
-    echo -e "${CLR_BLUE}╚════════════════════════════════════════════════════════════╝${CLR_RESET}"
-    echo "Platform: $PLATFORM | GPU: $GPU_TYPE | Mode: $COMFYUI_MODE"
-    echo "Docker: $CAN_DOCKER/$DOCKER_DAEMON | KVM: $CAN_KVM | libvirt: $CAN_LIBVIRT"
+    local p_col="${CLR_GOLD}${PLATFORM}${CLR_RESET}"
+    local g_col="${CLR_GOLD}${GPU_TYPE}${CLR_RESET}"
+    local m_col="${CLR_GOLD}${COMFYUI_MODE}${CLR_RESET}"
+    local d_bin d_daemon kvm_dev libv
+    [[ "$CAN_DOCKER" == true ]] && d_bin="${CLR_GREEN}true${CLR_RESET}" || d_bin="${CLR_RED}false${CLR_RESET}"
+    [[ "$DOCKER_DAEMON" == true ]] && d_daemon="${CLR_GREEN}true${CLR_RESET}" || d_daemon="${CLR_RED}false${CLR_RESET}"
+    [[ "$CAN_KVM" == true ]] && kvm_dev="${CLR_GREEN}true${CLR_RESET}" || kvm_dev="${CLR_RED}false${CLR_RESET}"
+    [[ "$CAN_LIBVIRT" == true ]] && libv="${CLR_GREEN}true${CLR_RESET}" || libv="${CLR_RED}false${CLR_RESET}"
+
+    echo -e "Platform: $p_col | GPU: $g_col | Mode: $m_col"
+    echo -e "Docker: $d_bin/$d_daemon | KVM: $kvm_dev | libvirt: $libv"
     echo
     echo "[1] HOST (Preflight Matrix & Hardware Check)"
     echo "[2] RUNTIMES (Native, Docker, KVM, Remote)"
