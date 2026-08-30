@@ -1,5 +1,0 @@
-# Installation Log
-# Backup-Inhalt
-
-[2026-08-30 12:00:00] [INFO] dax-control-plane bundle erstellt
-[2026-08-30 12:00:01] [INFO] Struktur: Policy Engine, Agent-Adapter, Watchdog, Remote Runtime, Secrets Manager, Volume Manager, Template Engine
