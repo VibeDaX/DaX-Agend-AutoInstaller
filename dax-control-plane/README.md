@@ -68,26 +68,33 @@ Das Command Center verfügt über ein eingebettetes Web-Dashboard zur Live-Über
 
 ---
 
-## 🛠️ Schnellstart
+## 🛠️ Schnellstart & Installation
 
-### 1. Repository klonen & Ausführrechte setzen
+### Option 1: Einzeiler-Schnellstart (Copy & Paste)
 ```bash
-git clone https://github.com/VibeDaX/DaX-Agend-AutoInstaller.git
-cd DaX-Agend-AutoInstaller
-chmod +x start.sh dax.sh lib/*.sh tests/*.sh
+git clone https://github.com/VibeDaX/DaX-Agend-AutoInstaller.git && cd DaX-Agend-AutoInstaller && chmod +x start.sh dax.sh lib/*.sh tests/*.sh && ./start.sh
 ```
 
-### 2. Command Center starten
-```bash
-./start.sh
-# oder direkt:
-./dax.sh
-```
+---
 
-### 3. Automatisierte Testsuite ausführen (100% Validierung)
-```bash
-./tests/run_tests.sh
-```
+### Option 2: Schritt-für-Schritt Installation
+
+1. **Repository klonen:**
+   ```bash
+   git clone https://github.com/VibeDaX/DaX-Agend-AutoInstaller.git
+   cd DaX-Agend-AutoInstaller
+   ```
+
+2. **Ausführrechte setzen & starten:**
+   ```bash
+   chmod +x start.sh dax.sh lib/*.sh tests/*.sh
+   ./start.sh
+   ```
+
+3. **Automatisierte Testsuite ausführen (100% Validierung):**
+   ```bash
+   ./tests/run_tests.sh
+   ```
 
 ---
 
