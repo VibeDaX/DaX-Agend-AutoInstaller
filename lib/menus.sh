@@ -80,7 +80,11 @@ menu_control_plane(){
       1) agent_deployment_wizard ;;
       1u)
         read -rp "Agent zum Deinstallieren (hermes/openclaw): " ag
+        ag="$(echo "$ag" | tr -d '[:space:]')"
+        [[ -z "$ag" ]] && { warn "Kein Agent eingegeben."; pause_menu; return 0; }
         read -rp "Runtime (native/docker/kvm/remote): " rt
+        rt="$(echo "$rt" | tr -d '[:space:]')"
+        [[ -z "$rt" ]] && { warn "Keine Runtime eingegeben."; pause_menu; return 0; }
         confirm_action "Agent $ag ($rt) wirklich deinstallieren?" || return 0
         agent_dispatch "$ag" "uninstall" "$rt"
         pause_menu
