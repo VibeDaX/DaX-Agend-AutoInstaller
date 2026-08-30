@@ -39,6 +39,8 @@ source "$SCRIPT_DIR/lib/policy.sh"
 source "$SCRIPT_DIR/lib/secrets.sh"
 source "$SCRIPT_DIR/lib/volumes.sh"
 source "$SCRIPT_DIR/lib/templates.sh"
+source "$SCRIPT_DIR/lib/backup.sh"
+source "$SCRIPT_DIR/lib/dashboard.sh"
 source "$SCRIPT_DIR/lib/watchdog.sh"
 source "$SCRIPT_DIR/lib/adapters.sh"
 
@@ -308,51 +310,55 @@ main_menu(){
     echo "CONTROL-PLANE MODULES"
     echo "[5]  Agent Manager / Deployment Wizard"
     echo "[6]  Agent Profiles (Manifeste)"
-    echo "[7]  Policy Manager"
-    echo "[8]  Volume Manager"
+    echo "[7]  Policy Manager (.dax/policy.yaml)"
+    echo "[8]  Volume Manager (.dax/volumes.yaml)"
     echo "[9]  Secrets Manager (AES-256)"
     echo "[10] Template Manager"
+    echo "[11] Encrypted Backup & Restore"
+    echo "[12] Web Status Dashboard & API (Port 9090)"
     echo
     echo "SERVICES"
-    echo "[11] Ollama konfigurieren & starten"
-    echo "[12] Ollama Modell laden (intelligenter RAM-Check)"
-    echo "[13] ComfyUI installieren/starten"
-    echo "[14] Open WebUI installieren/starten"
-    echo "[15] Node-RED + Faster-Whisper"
+    echo "[13] Ollama konfigurieren & starten"
+    echo "[14] Ollama Modell laden (intelligenter RAM-Check)"
+    echo "[15] ComfyUI installieren/starten"
+    echo "[16] Open WebUI installieren/starten"
+    echo "[17] Node-RED + Faster-Whisper"
     echo
     echo "OPERATIONS"
-    echo "[16] Health / Watchdog Check"
-    echo "[17] Installation verifizieren"
-    echo "[18] State / Configuration anzeigen"
-    echo "[19] Automatisierte Testsuite ausführen (100% Validierung)"
-    echo "[20] Dienste stoppen"
-    echo "[21] Logs anzeigen"
-    echo "[22] Beenden"
-    read -rp 'Auswahl [0-22]: ' choice
+    echo "[18] Health / Watchdog Check"
+    echo "[19] Installation verifizieren"
+    echo "[20] State / Configuration anzeigen"
+    echo "[21] Automatisierte Testsuite ausführen (100% Validierung)"
+    echo "[22] Dienste stoppen"
+    echo "[23] Logs anzeigen"
+    echo "[24] Beenden"
+    read -rp 'Auswahl [0-24]: ' choice
     case "$choice" in
       0) show_preflight; pause_menu;;
       1) install_system_dependencies; pause_menu;;
       2) runtime_menu;;
       3) vm_menu;;
-      4) echo "Remote Runtime: SSH/Orchestrator-Schnittstelle ist vorbereitet."; pause_menu;;
+      4) echo "Remote Runtime: SSH/Orchestrator-Schnittstelle ist bereit."; pause_menu;;
       5) agent_deployment_wizard;;
       6) agent_profiles; pause_menu;;
       7) policy_manager; pause_menu;;
       8) volume_manager; pause_menu;;
       9) secrets_manager; pause_menu;;
       10) template_manager; pause_menu;;
-      11) install_ollama; pause_menu;;
-      12) pull_ollama_model; pause_menu;;
-      13) install_comfyui; start_comfyui; pause_menu;;
-      14) install_openwebui; start_openwebui; pause_menu;;
-      15) install_nodered || true; install_whisper || true; start_nodered || true; pause_menu;;
-      16) health_check; pause_menu;;
-      17) verify_installations; pause_menu;;
-      18) show_state; pause_menu;;
-      19) "$SCRIPT_DIR/tests/run_tests.sh"; pause_menu;;
-      20) stop_services; pause_menu;;
-      21) view_logs;;
-      22) exit 0;;
+      11) backup_manager; pause_menu;;
+      12) dashboard_manager; pause_menu;;
+      13) install_ollama; pause_menu;;
+      14) pull_ollama_model; pause_menu;;
+      15) install_comfyui; start_comfyui; pause_menu;;
+      16) install_openwebui; start_openwebui; pause_menu;;
+      17) install_nodered || true; install_whisper || true; start_nodered || true; pause_menu;;
+      18) health_check; pause_menu;;
+      19) verify_installations; pause_menu;;
+      20) show_state; pause_menu;;
+      21) "$SCRIPT_DIR/tests/run_tests.sh"; pause_menu;;
+      22) stop_services; pause_menu;;
+      23) view_logs;;
+      24) exit 0;;
       *) warn 'Ungültige Auswahl.'; sleep 1;;
     esac
   done

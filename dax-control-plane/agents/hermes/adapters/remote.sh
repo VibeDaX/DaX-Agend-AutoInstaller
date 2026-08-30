@@ -1,38 +1,80 @@
+#!/usr/bin/env bash
+# =============================================================================
+# DAX AGENT ADAPTER — HERMES (REMOTE SSH RUNTIME)
+# =============================================================================
+set -Eeuo pipefail
+
+REMOTE_ID="${REMOTE_ID:-lab01}"
+
+_get_ssh_cmd(){
+  local host
+  host="$(secret_get "SSH_HOST" "remote" "$REMOTE_ID" 2>/dev/null || echo "")"
+  local user
+  user="$(secret_get "SSH_USER" "remote" "$REMOTE_ID" 2>/dev/null || echo "root")"
+  local key
+  key="$(secret_get "SSH_KEY" "remote" "$REMOTE_ID" 2>/dev/null || echo "")"
+
+  if [[ -z "$host" ]]; then
+    echo "echo 'Remote Host (SSH_HOST) für scope=remote/$REMOTE_ID nicht konfiguriert.'; exit 1;"
+    return 0
+  fi
+
+  local key_opt=""
+  if [[ -n "$key" && -f "$key" ]]; then
+    key_opt="-i $key"
+  fi
+  echo "ssh -o StrictHostKeyChecking=accept-new $key_opt ${user}@${host}"
+}
+
 adapter_install(){
-  echo "Remote-Installation: Agent-Kontext via SSH auf Remote-Host bereitstellen."
+  local ssh_cmd
+  ssh_cmd="$(_get_ssh_cmd)"
+  info "Installiere Hermes Agent remote auf $REMOTE_ID..."
+  $ssh_cmd "python3 -m venv ~/.hermesvenv && ~/.hermesvenv/bin/pip install hermes-agent" 2>/dev/null || warn "Remote SSH nicht erreichbar."
 }
 
 adapter_start(){
-  local host="lab01"
-  local ssh_key
-  ssh_key="$(secret_inject_remote_ssh_key "$host")" || ssh_key=""
-  info "Remote-Start: Agent auf $host starten (remote_exec mit SSH-Key: ${ssh_key:-none})."
-  remote_exec "$host" "sudo systemctl start dax-hermes" || warn "Remote-Start fehlgeschlagen."
+  local ssh_cmd
+  ssh_cmd="$(_get_ssh_cmd)"
+  info "Starte Hermes Agent remote auf $REMOTE_ID..."
+  $ssh_cmd "nohup ~/.hermesvenv/bin/hermes start >/dev/null 2>&1 &" 2>/dev/null || warn "Remote SSH nicht erreichbar."
 }
 
 adapter_stop(){
-  local host="lab01"
-  remote_exec "$host" "sudo systemctl stop dax-hermes" || warn "Remote-Stop fehlgeschlagen."
+  local ssh_cmd
+  ssh_cmd="$(_get_ssh_cmd)"
+  info "Stoppe Hermes Agent remote auf $REMOTE_ID..."
+  $ssh_cmd "pkill -f hermes" 2>/dev/null || true
 }
 
 adapter_status(){
-  local host="lab01"
-  remote_exec "$host" "systemctl is-active dax-hermes" || echo "unknown"
+  local ssh_cmd
+  ssh_cmd="$(_get_ssh_cmd)"
+  if $ssh_cmd "pgrep -f hermes" >/dev/null 2>&1; then
+    echo "Hermes (Remote/$REMOTE_ID): RUNNING"
+  else
+    echo "Hermes (Remote/$REMOTE_ID): STOPPED"
+  fi
 }
 
 adapter_logs(){
-  local host="lab01"
-  remote_exec "$host" "journalctl -u dax-hermes --no-pager -n 100" || warn "Remote-Logs fehlgeschlagen."
+  local ssh_cmd
+  ssh_cmd="$(_get_ssh_cmd)"
+  $ssh_cmd "tail -n 50 ~/.hermes/logs/hermes.log 2>/dev/null || echo 'Keine Remote Logs'"
 }
 
 adapter_health(){
-  local host="lab01"
-  local status
-  status="$(remote_exec "$host" "systemctl is-active dax-hermes" 2>/dev/null)" || status="unknown"
-  [[ "$status" == "active" ]] && echo "HEALTHY" || echo "STOPPED"
+  local ssh_cmd
+  ssh_cmd="$(_get_ssh_cmd)"
+  if $ssh_cmd "pgrep -f hermes" >/dev/null 2>&1; then
+    echo "HEALTHY"
+  else
+    echo "STOPPED"
+  fi
 }
 
 adapter_uninstall(){
-  local host="lab01"
-  remote_exec "$host" "sudo systemctl stop dax-hermes; sudo rm -f /etc/systemd/system/dax-hermes.service" || warn "Remote-Uninstall fehlgeschlagen."
+  local ssh_cmd
+  ssh_cmd="$(_get_ssh_cmd)"
+  $ssh_cmd "rm -rf ~/.hermesvenv ~/.hermes" 2>/dev/null || true
 }

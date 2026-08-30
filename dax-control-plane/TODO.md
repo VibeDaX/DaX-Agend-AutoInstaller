@@ -69,9 +69,9 @@ Dieses Dokument erfasst den aktuellen Fortschritt aller Arbeitsschritte und wird
 ---
 
 ## 🚀 Phase 8: Next-Gen Expansion & Automation
-- [x] **8.1** GitHub Actions CI/CD Pipeline (`.github/workflows/ci.yml`) einrichten
-- [x] **8.2** Encrypted Backup & Restore Modul (`lib/backup.sh`) implementieren
-- [x] **8.3** Remote SSH Agent Deployment (`agents/*/adapters/remote.sh`) vervollständigen
-- [x] **8.4** Web Status Dashboard & API (`lib/dashboard.sh`) auf Port 9090 einbauen
-- [x] **8.5** Testsuite erweitern (`tests/test_backup.sh`) & 100% Validierung ausführen
-- [x] **8.6** Dokumentation aktualisieren & Git Commit + Push zu GitHub
+- [ ] **8.1** GitHub Actions CI/CD Pipeline (`.github/workflows/ci.yml`) einrichten
+- [ ] **8.2** Encrypted Backup & Restore Modul (`lib/backup.sh`) implementieren
+- [ ] **8.3** Remote SSH Agent Deployment (`agents/*/adapters/remote.sh`) vervollständigen
+- [ ] **8.4** Web Status Dashboard & API (`lib/dashboard.sh`) auf Port 9090 einbauen
+- [ ] **8.5** Testsuite erweitern (`tests/test_backup.sh`) & 100% Validierung ausführen
+- [ ] **8.6** Dokumentation aktualisieren & Git Commit + Push zu GitHub

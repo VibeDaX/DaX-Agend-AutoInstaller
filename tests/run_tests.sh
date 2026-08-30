@@ -29,6 +29,7 @@ TEST_MODULES=(
   "tests/test_templates.sh"
   "tests/test_adapters.sh"
   "tests/test_watchdog.sh"
+  "tests/test_backup.sh"
 )
 
 TOTAL_MODULES=${#TEST_MODULES[@]}
