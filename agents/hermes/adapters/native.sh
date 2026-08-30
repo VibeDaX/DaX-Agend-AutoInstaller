@@ -65,7 +65,7 @@ adapter_start(){
   fi
 
   info "Starte Hermes Agent nativ im Hintergrund..."
-  nohup $exec_bin >>"$HERMES_LOG" 2>&1 &
+  nohup "$exec_bin" >>"$HERMES_LOG" 2>&1 &
   local pid=$!
   echo "$pid" > "$HERMES_PID"
   sleep 1

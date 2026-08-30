@@ -75,3 +75,61 @@ Dieses Dokument erfasst den aktuellen Fortschritt aller Arbeitsschritte und wird
 - [x] **8.4** Web Status Dashboard & API (`lib/dashboard.sh`) auf Port 9090 einbauen
 - [x] **8.5** Testsuite erweitern (`tests/test_backup.sh`) & 100% Validierung ausführen
 - [x] **8.6** Dokumentation aktualisieren & Git Commit + Push zu GitHub
+
+---
+
+## 🎯 Phase 9: Code Review Refactoring — P0 (Security High-Impact)
+> Ziel: Kritische Sicherheits- und Stabilitätsprobleme beheben vor weiteren Änderungen.
+
+- [ ] **9.1** `lib/secrets.sh`: Unsicheren Fallback-Key bei fehlendem OpenSSL entfernen
+  - **Akzeptanzkriterium:** `ensure_master_key` gibt bei fehlendem `openssl` Fehler zurück statt vorhersagbaren Fallback-Key zu nutzen; alternativ Key aus `/dev/urandom` lesen.
+- [ ] **9.2** `agents/*/adapters/native.sh`: Command Injection durch unquotierte Variablen beheben
+  - **Akzeptanzkriterium:** Alle `nohup $exec_bin` Aufrufe verwenden `nohup "$exec_bin"`; Leerzeichen in Pfaden brechen nicht mehr die Ausführung.
+- [ ] **9.3** `agents/*/adapters/remote.sh`: SSH-Hardening (StrictHostKeyChecking)
+  - **Akzeptanzkriterium:** Remote-Adapter nutzt `-o UserKnownHostsFile=/dev/null` oder verlangt expliziten Fingerprint-Check statt stillschweigend `accept-new`.
+- [ ] **9.4** `lib/secrets.sh`: Predictable Tempfiles durch `mktemp` ersetzen
+  - **Akzeptanzkriterium:** `/tmp/dax-secrets-*.env` wird durch `mktemp` generiert; Dateiname ist nicht vorhersagbar.
+- [ ] **9.5** Regressionstest nach P0-Änderungen
+  - **Akzeptanzkriterium:** `./tests/run_tests.sh` läuft weiterhin 100% grün (8/8 Module).
+
+---
+
+## 🔧 Phase 10: Code Review Refactoring — P1 (Qualität & CI)
+> Ziel: Duplikation eliminieren und CI-Qualität verbessern.
+
+- [ ] **10.1** Adapter-Duplikation eliminieren (Base-Adapter einführen)
+  - **Akzeptanzkriterium:** Gemeinsame Logik aus `agents/hermes/adapters/native.sh` und `agents/openclaw/adapters/native.sh` in `lib/adapter_base.sh` ausgelagert; agentenspezifische Unterschiede nur noch in `manifest.yaml` oder Mini-Wrappern.
+- [ ] **10.2** ShellCheck in CI integrieren
+  - **Akzeptanzkriterium:** `.github/workflows/ci.yml` enthält einen `shellcheck -x` Job für alle `*.sh` Dateien (außer `dax-control-plane/`); Build schlägt bei ShellCheck-Fehlern fehl.
+- [ ] **10.3** Tests an P0/P1-Änderungen anpassen
+  - **Akzeptanzkriterium:** `tests/test_secrets.sh` prüft Fehlerverhalten bei fehlendem OpenSSL; `tests/test_adapters.sh` validiert quoted command execution.
+- [ ] **10.4** Git Commit + Push nach abgeschlossener P1-Phase
+  - **Akzeptanzkriterium:** Phase 10 ist vollständig committet und gepusht; Working tree ist clean.
+
+---
+
+## ⚡ Phase 11: Code Review Refactoring — P2 (Performance & Robustness)
+> Ziel: Python-Overhead reduzieren und Wartezeiten optimieren.
+
+- [ ] **11.1** `python3 -c` Inline-Skripte durch Helper-Modul ersetzen
+  - **Akzeptanzkriterium:** Neue Datei `lib/state_helper.py` mit Funktionen für JSON-Read/Write; alle Inline-`python3 -c` Aufrufe nutzen dieses Modul; `import state_helper` ist zentral.
+- [ ] **11.2** `sleep 1` nach Prozess-Start durch Port-Polling ersetzen
+  - **Akzeptanzkriterium:** Funktion `wait_for_port <port> <timeout>` ersetzt feste `sleep 1` in Adaptern und Services; Tests sind nicht langsamer geworden.
+- [ ] **11.3** Performance-Regressionstest
+  - **Akzeptanzkriterium:** `./tests/run_tests.sh` läuft in < 15s (aktuell ~9s); keine neuen Timeouts in Tests.
+- [ ] **11.4** Git Commit + Push nach abgeschlossener P2-Phase
+  - **Akzeptanzkriterium:** Phase 11 ist vollständig committet und gepusht; Working tree ist clean.
+
+---
+
+## 🏗️ Phase 12: Code Review Refactoring — P3 (Architektur)
+> Ziel: Modularisierung von `dax.sh` für bessere Wartbarkeit.
+
+- [ ] **12.1** Service-Installer aus `dax.sh` in `lib/services.sh` auslagern
+  - **Akzeptanzkriterium:** Funktionen `install_system_dependencies`, `install_ollama`, `pull_ollama_model`, `install_comfyui`, `start_comfyui`, `install_openwebui`, `start_openwebui`, `install_nodered`, `install_whisper`, `start_nodered`, `install_docker`, `docker_context_init` sind in `lib/services.sh`; `dax.sh` enthält nur noch Menü-Dispatcher.
+- [ ] **12.2** Menü-Logik aus `dax.sh` in `lib/menus.sh` auslagern
+  - **Akzeptanzkriterium:** Alle `menu_*` Funktionen sind in `lib/menus.sh`; `dax.sh` enthält nur noch `main_menu` als Entrypoint.
+- [ ] **12.3** Finaler Integrationstest & Dokumentation
+  - **Akzeptanzkriterium:** `./tests/run_tests.sh` läuft 100% grün; README/DOKUMENTATION verweisen auf neue Dateistruktur; Hilfe-Menü ([6]) ist aktuell.
+- [ ] **12.4** Git Commit + Push nach abgeschlossener P3-Phase
+  - **Akzeptanzkriterium:** Phase 12 ist vollständig committet und gepusht; Working tree ist clean.

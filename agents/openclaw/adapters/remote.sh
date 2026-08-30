@@ -23,7 +23,7 @@ _get_ssh_cmd(){
   if [[ -n "$key" && -f "$key" ]]; then
     key_opt="-i $key"
   fi
-  echo "ssh -o StrictHostKeyChecking=accept-new $key_opt ${user}@${host}"
+  echo "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $key_opt ${user}@${host}"
 }
 
 adapter_install(){

@@ -20,8 +20,7 @@ ensure_master_key(){
       chmod 600 "$MASTER_KEY_FILE" 2>/dev/null || true
       info "Neuer Master-Key generiert: $MASTER_KEY_FILE"
     else
-      echo "dax-master-key-fallback-$(hostname 2>/dev/null || echo local)" > "$MASTER_KEY_FILE"
-      chmod 600 "$MASTER_KEY_FILE" 2>/dev/null || true
+      die "OpenSSL ist erforderlich für den Secrets Manager. Bitte installieren: apt install openssl"
     fi
   else
     chmod 600 "$MASTER_KEY_FILE" 2>/dev/null || true
@@ -155,7 +154,8 @@ for k, v in sec.items():
 
 secret_inject_docker(){
   local scope="$1" id="$2"
-  local tmp_env="/tmp/dax-secrets-${id}.env"
+  local tmp_env
+  tmp_env="$(mktemp /tmp/dax-secrets-XXXXXX.env)"
   secret_get_envfile "$scope" "$id" > "$tmp_env"
   chmod 600 "$tmp_env"
   echo "$tmp_env"

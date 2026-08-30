@@ -48,7 +48,7 @@ adapter_start(){
   fi
 
   info "Starte OpenClaw nativ im Hintergrund..."
-  nohup $exec_bin >>"$OPENCLAW_LOG" 2>&1 &
+  nohup "$exec_bin" >>"$OPENCLAW_LOG" 2>&1 &
   local pid=$!
   echo "$pid" > "$OPENCLAW_PID"
   sleep 1
