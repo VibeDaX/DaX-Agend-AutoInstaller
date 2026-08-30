@@ -22,11 +22,11 @@
     }
   },
   "agents.hermes": {
-    "attempts": 18,
+    "attempts": 19,
     "last_status": "STOPPED"
   },
   "agents.openclaw": {
-    "attempts": 18,
+    "attempts": 19,
     "last_status": "STOPPED"
   },
   "test_unit_service": {
