@@ -52,6 +52,7 @@ agent_deployment_wizard(){
   echo "1) Hermes 2.0"
   echo "2) OpenClaw"
   read -rp "Auswahl: " ag_c
+  clear 2>/dev/null || true
   local ag=""
   case "$ag_c" in
     1) ag="hermes" ;;
@@ -65,6 +66,7 @@ agent_deployment_wizard(){
   echo "3) KVM Virtuelle Maschine"
   echo "4) Remote SSH Host"
   read -rp "Runtime [1-4]: " rt_c
+  clear 2>/dev/null || true
   local rt="native"
   case "$rt_c" in
     1) rt="native" ;;
@@ -81,6 +83,7 @@ agent_deployment_wizard(){
   echo "5) Health Check"
   echo "6) Logs anzeigen"
   read -rp "Aktion [1-6]: " act_c
+  clear 2>/dev/null || true
   local act="status"
   case "$act_c" in
     1) act="install" ;;
