@@ -81,13 +81,13 @@ adapter_base_install(){
   fi
 
   if [[ -x "${AGENT_EXEC:-$venv/bin/$agent}" ]]; then
-    info "Führe $agent postinstall aus..."
-    "${AGENT_EXEC:-$venv/bin/$agent}" postinstall >>"$LOG_FILE" 2>&1 || true
+    info "Führe $agent postinstall aus (Timeout: 60s)..."
+    timeout 60 "${AGENT_EXEC:-$venv/bin/$agent}" postinstall >>"$LOG_FILE" 2>&1 || true
   fi
 
   if command_exists npx; then
-    info "Installiere Playwright Chromium für Browser-Tools..."
-    yes | npx playwright install chromium >>"$LOG_FILE" 2>&1 || true
+    info "Installiere Playwright Chromium für Browser-Tools (Timeout: 120s)..."
+    timeout 120 bash -c 'yes | npx playwright install chromium' >>"$LOG_FILE" 2>&1 || true
   fi
 
   ok "$agent Agent (Native) erfolgreich installiert in: $venv"
