@@ -1,0 +1,50 @@
+version: 1
+
+defaults:
+  require_confirmation: true
+  allow_remote_runtime: false
+
+platforms:
+  linux:
+    allow_runtimes:
+      - native
+      - docker
+      - kvm
+      - remote
+  wsl2:
+    allow_runtimes:
+      - native
+      - docker
+    deny_runtimes:
+      - kvm
+  termux:
+    allow_runtimes:
+      - native
+      - remote
+    deny_runtimes:
+      - docker
+      - kvm
+  proot:
+    allow_runtimes:
+      - native
+      - remote
+    deny_runtimes:
+      - docker
+      - kvm
+
+agents:
+  hermes:
+    allowed_runtimes:
+      - native
+      - docker
+      - kvm
+      - remote
+    default_runtime: docker
+    auto_recover: true
+
+  openclaw:
+    allowed_runtimes:
+      - docker
+      - kvm
+    default_runtime: docker
+    auto_recover: false

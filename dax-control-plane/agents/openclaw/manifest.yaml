@@ -1,0 +1,19 @@
+name: openclaw
+version: 1
+supported_runtimes:
+  - docker
+  - kvm
+default_runtime: docker
+volumes:
+  - openclaw_data
+resources:
+  cpus: 2
+  memory: 2G
+security:
+  non_root: true
+  no_new_privileges: true
+  cap_drop_all: true
+network:
+  mode: isolated
+healthcheck:
+  enabled: true

@@ -1,0 +1,9 @@
+agent: "openclaw"
+runtime: "docker"
+services:
+  - name: "openclaw"
+    image: "dax/openclaw:baseline"
+    volumes:
+      - "openclaw_data"
+    env:
+      - "OPENCLAW_MODE=production"

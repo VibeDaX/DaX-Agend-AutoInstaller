@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+.*venv/
+.venv/
+env/
+venv/
+ENV/
+
+# PIDs & Runtime State
+.dax/pids/
+runtime/
+data/
+vms/*.qcow2
+vms/*.img
+
+# Logs
+logs/*.log
+logs/*.pid
+
+# Archives & Backups
+*.tar.gz
+*.zip
+agent_backup/
+
+# Secrets & Private Data (Keep templates/structure, ignore actual local overrides)
+.env
+.env.local
+*.key.local
+/tmp/dax-*

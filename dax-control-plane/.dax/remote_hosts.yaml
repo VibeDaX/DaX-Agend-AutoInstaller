@@ -1,0 +1,15 @@
+hosts:
+  lab01:
+    host: "lab01.internal"
+    user: "dax"
+    port: 22
+    tags:
+      - docker
+      - kvm
+  cloud01:
+    host: "cloud.example.com"
+    user: "dax"
+    port: 22
+    tags:
+      - docker
+      - remote_only

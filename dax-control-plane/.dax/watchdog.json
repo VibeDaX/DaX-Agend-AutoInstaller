@@ -1,0 +1,9 @@
+{
+  "ollama": { "attempts": 0, "last_status": "HEALTHY" },
+  "comfyui": { "attempts": 0, "last_status": "HEALTHY" },
+  "docker": { "attempts": 0, "last_status": "HEALTHY" },
+  "agents": {
+    "hermes": { "attempts": 0, "last_status": "HEALTHY" },
+    "openclaw": { "attempts": 0, "last_status": "HEALTHY" }
+  }
+}
