@@ -423,8 +423,8 @@ main_menu(){
     detect_runtime_capabilities
     persist_runtime_state
     echo -e "${CLR_BLUE}╔════════════════════════════════════════════════════════════╗${CLR_RESET}"
-    echo -e "${CLR_BLUE}║${CLR_GOLD}          DAX COMMAND CENTER v$VERSION          ${CLR_BLUE}║${CLR_RESET}"
-    echo -e "${CLR_BLUE}║${CLR_GOLD}       CONTROL-PLANE EDITION (Policy/Adapter/Watchdog)   ${CLR_BLUE}║${CLR_RESET}"
+    echo -e "${CLR_BLUE}║${CLR_GOLD}           DAX COMMAND CENTER v$VERSION            ${CLR_BLUE}║${CLR_RESET}"
+    echo -e "${CLR_BLUE}║${CLR_GOLD}      CONTROL-PLANE EDITION (Policy/Adapter/Watchdog)       ${CLR_BLUE}║${CLR_RESET}"
     echo -e "${CLR_BLUE}╚════════════════════════════════════════════════════════════╝${CLR_RESET}"
     echo "Platform: $PLATFORM | GPU: $GPU_TYPE | Mode: $COMFYUI_MODE"
     echo "Docker: $CAN_DOCKER/$DOCKER_DAEMON | KVM: $CAN_KVM | libvirt: $CAN_LIBVIRT"
