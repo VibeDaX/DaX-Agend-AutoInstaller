@@ -11,12 +11,13 @@ adapter_install(){
   info "Installiere OpenClaw (Native Python VENV)..."
   ensure_venv "$OPENCLAW_VENV" "OpenClaw VENV"
 
+  local pip_flags="--ignore-requires-python"
   info "Installiere openclaw Python-Paket..."
-  "$OPENCLAW_VENV/bin/python" -m pip install openclaw >>"$LOG_FILE" 2>&1 || {
+  "$OPENCLAW_VENV/bin/python" -m pip install $pip_flags openclaw >>"$LOG_FILE" 2>&1 || {
     warn "Direkte pip-Installation fehlgeschlagen, versuche GitHub-Repo..."
-    "$OPENCLAW_VENV/bin/python" -m pip install "git+https://github.com/openclaw/openclaw.git" >>"$LOG_FILE" 2>&1 || {
+    "$OPENCLAW_VENV/bin/python" -m pip install $pip_flags "git+https://github.com/openclaw/openclaw.git" >>"$LOG_FILE" 2>&1 || {
       warn "OpenClaw Standard-Paket nicht gefunden — erstelle lokales Baseline-Package."
-      "$OPENCLAW_VENV/bin/python" -m pip install pydantic fastapi uvicorn requests >>"$LOG_FILE" 2>&1 || true
+      "$OPENCLAW_VENV/bin/python" -m pip install $pip_flags pydantic fastapi uvicorn requests >>"$LOG_FILE" 2>&1 || true
     }
   }
 

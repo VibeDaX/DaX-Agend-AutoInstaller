@@ -11,11 +11,21 @@ adapter_install(){
   info "Installiere Hermes Agent 2.0 (Native Python VENV)..."
   ensure_venv "$HERMES_VENV" "Hermes Agent VENV"
   
+  local pip_flags="--ignore-requires-python"
+  if [[ "$PLATFORM" == "termux" || "$PLATFORM" == "proot" ]]; then
+    info "Termux/PRoot Python 3.14+ Umgebung erkannt — wende Termux-Fixes an..."
+    if command_exists pkg; then
+      pkg install -y python-psutil >>"$LOG_FILE" 2>&1 || true
+    fi
+  fi
+
   info "Installiere hermes-agent Python-Paket..."
-  "$HERMES_VENV/bin/python" -m pip install --upgrade hermes-agent >>"$LOG_FILE" 2>&1 || {
-    warn "Direkte pip-Installation fehlgeschlagen, versuche offizielles Installer-Skript..."
+  "$HERMES_VENV/bin/python" -m pip install --upgrade $pip_flags hermes-agent >>"$LOG_FILE" 2>&1 || {
+    warn "Direkte pip-Installation fehlgeschlagen, versuche Installer-Skript und Fallbacks..."
     curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash >>"$LOG_FILE" 2>&1 || true
-    "$HERMES_VENV/bin/python" -m pip install hermes-agent >>"$LOG_FILE" 2>&1 || die "Hermes Installation fehlgeschlagen."
+    "$HERMES_VENV/bin/python" -m pip install $pip_flags hermes-agent >>"$LOG_FILE" 2>&1 || \
+    "$HERMES_VENV/bin/python" -m pip install $pip_flags --no-deps hermes-agent >>"$LOG_FILE" 2>&1 || \
+    die "Hermes Installation fehlgeschlagen."
   }
 
   if [[ -x "$HERMES_VENV/bin/hermes" ]]; then
