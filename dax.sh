@@ -38,15 +38,16 @@ command_exists(){ command -v "$1" >/dev/null 2>&1; }
 # PLATFORM / CAPABILITY DETECTION
 # =============================================================================
 IS_TERMUX=false; IS_PROOT=false; IS_WSL=false; PLATFORM="linux"; OS_NAME="Linux"
-[[ -n "${TERMUX_VERSION:-}" || -d /data/data/com.termux/files/usr ]] && IS_TERMUX=true
-([[ -f /.guest ]] || grep -qa proot /proc/1/cmdline 2>/dev/null) && IS_PROOT=true || true
-([[ -n "${WSL_DISTRO_NAME:-}" ]] || grep -qi microsoft /proc/version 2>/dev/null) && IS_WSL=true || true
+if [[ -n "${TERMUX_VERSION:-}" || -d /data/data/com.termux/files/usr ]]; then IS_TERMUX=true; fi
+if [[ -f /.guest ]] || grep -qa proot /proc/1/cmdline 2>/dev/null; then IS_PROOT=true; fi
+if [[ -n "${WSL_DISTRO_NAME:-}" ]] || grep -qi microsoft /proc/version 2>/dev/null; then IS_WSL=true; fi
+
 if [[ "$IS_TERMUX" == true && "$IS_PROOT" == false ]]; then PLATFORM="termux"; OS_NAME="Termux"
 elif [[ "$IS_PROOT" == true ]]; then PLATFORM="proot"; OS_NAME="PRoot/Linux"
 elif [[ "$IS_WSL" == true ]]; then PLATFORM="wsl2"; OS_NAME="WSL2"
 fi
 
-SUDO=""; command_exists sudo && SUDO="sudo"
+SUDO=""; if command_exists sudo; then SUDO="sudo"; fi
 
 GPU_TYPE="cpu"; GPU_NAME="CPU"; TORCH_INDEX=""; COMFYUI_MODE="cpu"
 CAN_LOCAL_OLLAMA=true; CAN_COMFYUI_ACCEL=true
@@ -69,16 +70,22 @@ detect_runtime_capabilities(){
     if docker info 2>/dev/null | grep -qi 'rootless'; then DOCKER_ROOTLESS=true; fi
   fi
 
-  [[ -e /dev/kvm ]] && KVM_DEVICE=true
+  if [[ -e /dev/kvm ]]; then KVM_DEVICE=true; fi
   if command_exists kvm-ok && kvm-ok >/dev/null 2>&1; then CAN_KVM=true
   elif [[ "$KVM_DEVICE" == true && -r /dev/kvm && -w /dev/kvm ]]; then CAN_KVM=true; fi
-  command_exists virsh && virsh -c qemu:///system uri >/dev/null 2>&1 && CAN_LIBVIRT=true || true
+  if command_exists virsh && virsh -c qemu:///system uri >/dev/null 2>&1; then CAN_LIBVIRT=true; fi
 
   if [[ -r /proc/cpuinfo ]]; then
-    grep -Eq '(^|[[:space:]])(vmx|svm)([[:space:]]|$)' /proc/cpuinfo && HOST_VIRTUALIZATION="VT-x/AMD-V detected" || HOST_VIRTUALIZATION="not detected"
+    if grep -Eq '(^|[[:space:]])(vmx|svm)([[:space:]]|$)' /proc/cpuinfo 2>/dev/null; then
+      HOST_VIRTUALIZATION="VT-x/AMD-V detected"
+    else
+      HOST_VIRTUALIZATION="not detected"
+    fi
   fi
 
-  [[ "$PLATFORM" == termux || "$PLATFORM" == proot ]] && CAN_DOCKER=false && DOCKER_DAEMON=false && CAN_KVM=false && KVM_DEVICE=false && CAN_LIBVIRT=false
+  if [[ "$PLATFORM" == termux || "$PLATFORM" == proot ]]; then
+    CAN_DOCKER=false; DOCKER_DAEMON=false; CAN_KVM=false; KVM_DEVICE=false; CAN_LIBVIRT=false
+  fi
 }
 
 detect_hardware(){
@@ -90,13 +97,16 @@ detect_hardware(){
     GPU_TYPE="amd"; GPU_NAME="AMD ROCm"; TORCH_INDEX="https://download.pytorch.org/whl/rocm7.2"; COMFYUI_MODE="rocm"
   elif command_exists lspci && lspci 2>/dev/null | grep -qi 'Intel.*Arc'; then
     GPU_TYPE="intel"; GPU_NAME="Intel Arc"; TORCH_INDEX="https://download.pytorch.org/whl/xpu"; COMFYUI_MODE="xpu"
-  elif [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]]; then
+  elif [[ "$(uname -s 2>/dev/null)" == Darwin && "$(uname -m 2>/dev/null)" == arm64 ]]; then
     GPU_TYPE="apple"; GPU_NAME="Apple Silicon"; COMFYUI_MODE="mps"
   fi
-  [[ "$CAN_COMFYUI_ACCEL" == false ]] && GPU_TYPE="cpu" && GPU_NAME="CPU (Termux/PRoot)" && COMFYUI_MODE="cpu"
+  if [[ "$CAN_COMFYUI_ACCEL" == false ]]; then
+    GPU_TYPE="cpu"; GPU_NAME="CPU (Termux/PRoot)"; COMFYUI_MODE="cpu"
+  fi
 }
 
-detect_hardware; detect_runtime_capabilities
+detect_hardware
+detect_runtime_capabilities
 
 show_preflight(){
   detect_hardware; detect_runtime_capabilities
@@ -294,7 +304,7 @@ policy_allow_runtime_for_agent(){
   local allowed=""; default_rt=""
   case "$agent" in
     hermes) allowed="native docker kvm remote"; default_rt="docker" ;;
-    openclaw) allowed="docker kvm"; default_rt="docker" ;;
+    openclaw) allowed="native docker kvm remote"; default_rt="docker" ;;
     *) warn "Unbekannter Agent: $agent"; return 1 ;;
   esac
   [[ " $allowed " =~ " $runtime " ]] && return 0
@@ -1327,8 +1337,10 @@ main_menu(){
   done
 }
 
-detect_runtime_capabilities
-persist_runtime_state
-trap 'log INFO "DAX Command Center beendet."' EXIT
-log INFO "=== DAX Command Center v$VERSION gestartet ($PLATFORM) ==="
-main_menu
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  detect_runtime_capabilities
+  persist_runtime_state
+  trap 'log INFO "DAX Command Center beendet."' EXIT
+  log INFO "=== DAX Command Center v$VERSION gestartet ($PLATFORM) ==="
+  main_menu
+fi

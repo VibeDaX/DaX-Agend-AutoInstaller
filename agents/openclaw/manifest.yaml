@@ -1,8 +1,10 @@
 name: openclaw
 version: 1
 supported_runtimes:
+  - native
   - docker
   - kvm
+  - remote
 default_runtime: docker
 volumes:
   - openclaw_data

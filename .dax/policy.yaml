@@ -44,7 +44,9 @@ agents:
 
   openclaw:
     allowed_runtimes:
+      - native
       - docker
       - kvm
+      - remote
     default_runtime: docker
     auto_recover: false

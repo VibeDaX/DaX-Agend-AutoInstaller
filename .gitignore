@@ -13,6 +13,8 @@ ENV/
 
 # PIDs & Runtime State
 .dax/pids/
+.dax/state.json
+.dax/capabilities.env
 runtime/
 data/
 vms/*.qcow2
