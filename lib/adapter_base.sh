@@ -81,8 +81,8 @@ adapter_base_install(){
   fi
 
   if [[ -x "${AGENT_EXEC:-$venv/bin/$agent}" ]]; then
-    info "Führe $agent postinstall aus (Timeout: 60s)..."
-    timeout 60 "${AGENT_EXEC:-$venv/bin/$agent}" postinstall >>"$LOG_FILE" 2>&1 || true
+    info "Führe $agent postinstall aus (Timeout: 120s, non-interactive)..."
+    echo -e "n\nn" | timeout 120 "${AGENT_EXEC:-$venv/bin/$agent}" postinstall >>"$LOG_FILE" 2>&1 || true
   fi
 
   if command_exists npx; then
