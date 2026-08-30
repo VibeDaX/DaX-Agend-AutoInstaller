@@ -7,8 +7,13 @@ set -Eeuo pipefail
 
 apt_install(){
   info "Installiere Systempakete: $*"
-  $SUDO apt-get update -qq
-  $SUDO apt-get install -y -qq --no-install-recommends "$@"
+  if ! $SUDO apt-get update -qq >>"$LOG_FILE" 2>&1; then
+    warn "apt-get update fehlgeschlagen — versiere trotzdem Installation..."
+  fi
+  if ! $SUDO apt-get install -y -qq --no-install-recommends "$@" >>"$LOG_FILE" 2>&1; then
+    warn "apt-get install für '$*' fehlgeschlagen — bitte prüfe deine APT-Quellen."
+    return 1
+  fi
   ok "Pakete installiert: $*"
 }
 
@@ -34,7 +39,9 @@ termux_handoff(){
 install_system_dependencies(){
   require_native_linux || return 0
   info "Installiere Basis-Systemabhängigkeiten..."
-  apt_install build-essential curl wget git python3 python3-pip python3-venv openssl jq stat
+  if ! apt_install build-essential curl wget git python3 python3-pip python3-venv openssl jq stat; then
+    warn "Einige Systempakete konnten nicht installiert werden — Installation wird trotzdem fortgesetzt."
+  fi
   ok "System-Basisabhängigkeiten sind bereit."
 }
 

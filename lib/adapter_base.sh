@@ -37,15 +37,26 @@ adapter_base_install(){
     fi
   fi
 
-  info "Installiere $pip_pkg Python-Paket..."
-  "$venv/bin/python" -m pip install --upgrade $pip_flags "$pip_pkg" >>"$LOG_FILE" 2>&1 || {
-    warn "Direkte pip-Installation fehlgeschlagen, versuche Installer-Skript und Fallbacks..."
-    for cmd in "${install_cmds[@]}"; do
-      eval "$cmd" >>"$LOG_FILE" 2>&1 || true
-    done
-    "$venv/bin/python" -m pip install $pip_flags --no-deps "$pip_pkg" >>"$LOG_FILE" 2>&1 || \
-      die "$agent Installation fehlgeschlagen."
-  }
+  info "Sicherstelle pip im VENV..."
+  "$venv/bin/python" -m ensurepip --upgrade >>"$LOG_FILE" 2>&1 || \
+    "$venv/bin/python" -m ensurepip >>"$LOG_FILE" 2>&1 || true
+
+  if ! "$venv/bin/python" -c "import pip" 2>/dev/null; then
+    warn "pip fehlt im VENV — versuche System-pip zu nutzen..."
+    pip install --target="$venv/lib/python$( "$venv/bin/python" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' )/site-packages" $pip_flags "$pip_pkg" >>"$LOG_FILE" 2>&1 || {
+      die "$agent Installation fehlgeschlagen: pip ist im VENV nicht verfügbar."
+    }
+  else
+    info "Installiere $pip_pkg Python-Paket..."
+    "$venv/bin/python" -m pip install --upgrade $pip_flags "$pip_pkg" >>"$LOG_FILE" 2>&1 || {
+      warn "Direkte pip-Installation fehlgeschlagen, versuche Installer-Skript und Fallbacks..."
+      for cmd in "${install_cmds[@]}"; do
+        eval "$cmd" >>"$LOG_FILE" 2>&1 || true
+      done
+      "$venv/bin/python" -m pip install $pip_flags --no-deps "$pip_pkg" >>"$LOG_FILE" 2>&1 || \
+        die "$agent Installation fehlgeschlagen."
+    }
+  fi
 
   if ! "$venv/bin/python" -c "import yaml" 2>/dev/null; then
     info "PyYAML fehlt — installiere als Dependency für $agent..."
