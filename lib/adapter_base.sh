@@ -20,43 +20,60 @@ ADAPTER_BASE_LOADED=true
 # ---------------------------------------------------------------------------
 
 adapter_base_install(){
-  local agent="${AGENT_NAME:-unknown}"
-  local venv="${AGENT_VENV:?AGENT_VENV muss gesetzt sein}"
-  local log="${AGENT_LOG:-$LOG_DIR/${agent}.log}"
-  local pip_pkg="${AGENT_PIP_PACKAGE:?AGENT_PIP_PACKAGE muss gesetzt sein}"
-  local install_cmds=("${AGENT_INSTALL_CMDS[@]:-}")
+   local agent="${AGENT_NAME:-unknown}"
+   local venv="${AGENT_VENV:?AGENT_VENV muss gesetzt sein}"
+   local log="${AGENT_LOG:-$LOG_DIR/${agent}.log}"
+   local pip_pkg="${AGENT_PIP_PACKAGE:?AGENT_PIP_PACKAGE muss gesetzt sein}"
+   local install_cmds=("${AGENT_INSTALL_CMDS[@]:-}")
 
-  info "Installiere $agent Agent (Native Python VENV)..."
-  ensure_venv "$venv" "$agent Agent VENV"
+   info "Installiere $agent Agent (Native Python VENV)..."
+   ensure_venv "$venv" "$agent Agent VENV"
 
-  local pip_flags="--ignore-requires-python"
-  if [[ "$PLATFORM" == "termux" || "$PLATFORM" == "proot" ]]; then
-    info "Termux/PRoot Python 3.14+ Umgebung erkannt — wende Termux-Fixes an..."
-    if command_exists pkg; then
-      pkg install -y python-psutil >>"$LOG_FILE" 2>&1 || true
-    fi
-  fi
+   local pip_flags="--ignore-requires-python"
+   if [[ "$PLATFORM" == "termux" || "$PLATFORM" == "proot" ]]; then
+     info "Termux/PRoot Python 3.14+ Umgebung erkannt — wende Termux-Fixes an..."
+     if command_exists pkg; then
+       pkg install -y python-psutil >>"$LOG_FILE" 2>&1 || true
+     fi
+   fi
 
-  info "Sicherstelle pip im VENV..."
-  "$venv/bin/python" -m ensurepip --upgrade >>"$LOG_FILE" 2>&1 || \
-    "$venv/bin/python" -m ensurepip >>"$LOG_FILE" 2>&1 || true
+   info "Sicherstelle pip im VENV..."
+   "$venv/bin/python" -m ensurepip --upgrade >>"$LOG_FILE" 2>&1 || \
+     "$venv/bin/python" -m ensurepip >>"$LOG_FILE" 2>&1 || true
 
-  if ! "$venv/bin/python" -c "import pip" 2>/dev/null; then
-    warn "pip fehlt im VENV — versuche System-pip zu nutzen..."
-    pip install --target="$venv/lib/python$( "$venv/bin/python" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' )/site-packages" $pip_flags "$pip_pkg" >>"$LOG_FILE" 2>&1 || {
-      die "$agent Installation fehlgeschlagen: pip ist im VENV nicht verfügbar."
-    }
-  else
-    info "Installiere $pip_pkg Python-Paket..."
-    "$venv/bin/python" -m pip install --upgrade $pip_flags "$pip_pkg" >>"$LOG_FILE" 2>&1 || {
-      warn "Direkte pip-Installation fehlgeschlagen, versuche Installer-Skript und Fallbacks..."
-      for cmd in "${install_cmds[@]}"; do
-        eval "$cmd" >>"$LOG_FILE" 2>&1 || true
-      done
-      "$venv/bin/python" -m pip install $pip_flags --no-deps "$pip_pkg" >>"$LOG_FILE" 2>&1 || \
-        die "$agent Installation fehlgeschlagen."
-    }
-  fi
+   if ! "$venv/bin/python" -c "import pip" 2>/dev/null; then
+     warn "ensurepip fehlgeschlagen — versuche get-pip.py Bootstrap..."
+     if curl -fsSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py >>"$LOG_FILE" 2>&1; then
+       "$venv/bin/python" /tmp/get-pip.py --force-reinstall >>"$LOG_FILE" 2>&1 || true
+       rm -f /tmp/get-pip.py
+     fi
+   fi
+
+   if ! "$venv/bin/python" -c "import pip" 2>/dev/null; then
+     warn "pip fehlt im VENV — versuche System-pip zu nutzen..."
+     if command_exists pip; then
+       pip install --target="$venv/lib/python$( "$venv/bin/python" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' )/site-packages" $pip_flags "$pip_pkg" >>"$LOG_FILE" 2>&1 || {
+         die "$agent Installation fehlgeschlagen: pip ist im VENV nicht verfügbar."
+       }
+     else
+       die "$agent Installation fehlgeschlagen: pip ist im VENV und System nicht verfügbar."
+     fi
+   else
+     info "Installiere $pip_pkg Python-Paket..."
+     "$venv/bin/python" -m pip install --upgrade $pip_flags "$pip_pkg" >>"$LOG_FILE" 2>&1 || {
+       warn "Direkte pip-Installation fehlgeschlagen, versuche Installer-Skript und Fallbacks..."
+       if [[ "$PLATFORM" == "termux" || "$PLATFORM" == "proot" ]]; then
+         info "Setze UV_LINK_MODE=copy für PRoot-Kompatibilität..."
+         export UV_LINK_MODE=copy
+         export UV_NO_CACHE=true
+       fi
+       for cmd in "${install_cmds[@]}"; do
+         eval "$cmd" >>"$LOG_FILE" 2>&1 || true
+       done
+       "$venv/bin/python" -m pip install $pip_flags --no-deps "$pip_pkg" >>"$LOG_FILE" 2>&1 || \
+         die "$agent Installation fehlgeschlagen."
+     }
+   fi
 
   if ! "$venv/bin/python" -c "import yaml" 2>/dev/null; then
     info "PyYAML fehlt — installiere als Dependency für $agent..."
