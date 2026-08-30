@@ -279,6 +279,7 @@ view_logs(){
 pause_menu(){
   echo
   read -rp 'ENTER zum Fortfahren...' _
+  clear 2>/dev/null || true
 }
 
 # =============================================================================
@@ -333,6 +334,7 @@ main_menu(){
     echo "[23] Logs anzeigen"
     echo "[24] Beenden"
     read -rp 'Auswahl [0-24]: ' choice
+    clear 2>/dev/null || true
     case "$choice" in
       0) show_preflight; pause_menu;;
       1) install_system_dependencies; pause_menu;;

@@ -46,6 +46,7 @@ agent_profiles(){
 }
 
 agent_deployment_wizard(){
+  clear 2>/dev/null || true
   echo "=== AGENT DEPLOYMENT WIZARD ==="
   echo "Verfügbare Agenten:"
   echo "1) Hermes 2.0"
