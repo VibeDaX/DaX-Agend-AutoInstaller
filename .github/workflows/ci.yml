@@ -18,7 +18,7 @@ jobs:
       - name: Set up Python & System Dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq python3 openssl jq stat
+          sudo apt-get install -y -qq python3 openssl jq stat shellcheck
 
       - name: Bash Syntax Check
         run: |
@@ -27,6 +27,16 @@ jobs:
             echo "Checking syntax: $f"
             bash -n "$f"
           done
+
+      - name: ShellCheck Static Analysis
+        run: |
+          set -euo pipefail
+          echo "Running ShellCheck on all shell scripts..."
+          shellcheck -x -S error start.sh dax.sh lib/*.sh agents/*/adapters/*.sh tests/*.sh || {
+            echo "ShellCheck found issues. Please review the output above."
+            exit 1
+          }
+          echo "ShellCheck passed with no errors."
 
       - name: Set Executable Permissions
         run: |
