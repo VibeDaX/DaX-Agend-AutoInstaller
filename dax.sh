@@ -56,9 +56,12 @@ main_menu(){
     detect_hardware
     detect_runtime_capabilities
     persist_runtime_state
-    echo -e "${CLR_BLUE}╔══════════════════════════════════════════════════════════════════════════╗${CLR_RESET}"
+    echo -e "${CLR_BLUE}╔════════════════════════════════════════════════════════════════╗${CLR_RESET}"
     echo -e "${CLR_BLUE}║${CLR_GOLD}           DAX COMMAND CENTER v$VERSION            ${CLR_BLUE}║${CLR_RESET}"
     echo -e "${CLR_BLUE}║${CLR_GOLD}      CONTROL-PLANE EDITION (Policy/Adapter/Watchdog)       ${CLR_BLUE}║${CLR_RESET}"
+    echo -e "${CLR_BLUE}╚════════════════════════════════════════════════════════════════╝${CLR_RESET}"
+    echo
+    
     local p_col="${CLR_GOLD}${PLATFORM}${CLR_RESET}"
     local g_col="${CLR_GOLD}${GPU_TYPE}${CLR_RESET}"
     local m_col="${CLR_GOLD}${COMFYUI_MODE}${CLR_RESET}"
