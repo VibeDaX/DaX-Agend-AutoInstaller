@@ -15,7 +15,7 @@ CLR_BLUE=$'\033[38;2;0;210;255m'; CLR_GOLD=$'\033[38;2;212;175;55m'
 CLR_GREEN=$'\033[38;2;0;255;127m'; CLR_RED=$'\033[38;2;255;69;0m'
 CLR_WHITE=$'\033[1;37m'; CLR_RESET=$'\033[0m'
 
-LOG_DIR="$SCRIPT_DIR/logs"; LOG_FILE="$LOG_DIR/installation.log"
+LOG_DIR="$SCRIPT_DIR/logs"; LOG_FILE="$LOG_DIR/installation.log"; WATCHDOG_LOG="$LOG_DIR/watchdog.log"
 STATE_DIR="$SCRIPT_DIR/.dax"; PID_DIR="$STATE_DIR/pids"
 VENV_COMFYUI="$SCRIPT_DIR/.comfyuivenv"; VENV_OPENWEBUI="$SCRIPT_DIR/.openwebuivenv"
 VENV_WHISPER="$SCRIPT_DIR/.whispervenv"; COMFYUI_DIR="$SCRIPT_DIR/ComfyUI"
@@ -347,13 +347,59 @@ volume_mount_docker(){
 }
 
 # =============================================================================
-# SECRETS MANAGER (v1 — erweitert mit Context-Injektion)
+# SECRETS MANAGER (v2 — mit AES-256-Verschlüsselung & Context-Injektion)
 # =============================================================================
 SECRETS_DIR="$STATE_DIR/secrets"
 SECRETS_FILE="$SECRETS_DIR/secrets.json"
 GLOBAL_SECRETS="$SECRETS_FILE"
 AGENT_SECRETS_DIR="$SECRETS_DIR/agents"
 REMOTE_SECRETS_DIR="$SECRETS_DIR/remote"
+MASTER_KEY_FILE="$SECRETS_DIR/master.key"
+
+ensure_master_key(){
+  mkdir -p "$SECRETS_DIR"
+  if [[ ! -f "$MASTER_KEY_FILE" || ! -s "$MASTER_KEY_FILE" ]]; then
+    if command_exists openssl; then
+      openssl rand -hex 32 > "$MASTER_KEY_FILE"
+      chmod 600 "$MASTER_KEY_FILE"
+      info "Neuer Master-Key generiert: $MASTER_KEY_FILE"
+    else
+      echo "dax-master-key-fallback-$(hostname 2>/dev/null || echo local)" > "$MASTER_KEY_FILE"
+      chmod 600 "$MASTER_KEY_FILE"
+    fi
+  fi
+}
+
+secret_encrypt_value(){
+  local plaintext="$1"
+  ensure_master_key
+  if [[ -f "$MASTER_KEY_FILE" ]] && command_exists openssl; then
+    local enc
+    enc="$(echo -n "$plaintext" | openssl enc -aes-256-cbc -pbkdf2 -salt -pass "file:$MASTER_KEY_FILE" -base64 -A 2>/dev/null)" || enc=""
+    if [[ -n "$enc" ]]; then
+      echo "enc:$enc"
+      return 0
+    fi
+  fi
+  echo "$plaintext"
+}
+
+secret_decrypt_value(){
+  local raw="$1"
+  if [[ "$raw" =~ ^enc:(.+) ]]; then
+    local ciphertext="${BASH_REMATCH[1]}"
+    ensure_master_key
+    if [[ -f "$MASTER_KEY_FILE" ]] && command_exists openssl; then
+      local dec
+      dec="$(echo -n "$ciphertext" | openssl enc -d -aes-256-cbc -pbkdf2 -pass "file:$MASTER_KEY_FILE" -base64 -A 2>/dev/null)" || dec=""
+      if [[ -n "$dec" ]]; then
+        echo "$dec"
+        return 0
+      fi
+    fi
+  fi
+  echo "$raw"
+}
 
 secret_get(){
   local key="$1" scope="${2:-global}"
@@ -371,12 +417,14 @@ secret_get(){
       ;;
   esac
   [[ -f "$src" ]] || { warn "Secrets-Datei fehlt: $src"; return 1; }
-  python3 -c "
+  local raw_val
+  raw_val="$(python3 -c "
 import json
 with open('$src','r') as f: data=json.load(f)
 keys=data.get('secrets', data.get('keys', {}))
 print(keys.get('$key',''))
-" 2>/dev/null
+" 2>/dev/null)"
+  secret_decrypt_value "$raw_val"
 }
 
 secret_get_envfile(){
@@ -387,14 +435,25 @@ secret_get_envfile(){
     remote) [[ -n "$identifier" ]] && src="$REMOTE_SECRETS_DIR/${identifier}.json" || return 1 ;;
   esac
   [[ -f "$src" ]] || { warn "Secrets-Datei fehlt: $src"; return 1; }
-  python3 -c "
+
+  local raw_pairs
+  raw_pairs="$(python3 -c "
 import json
 with open('$src','r') as f: data=json.load(f)
 secrets=data.get('secrets', data.get('keys', {}))
 for k,v in secrets.items():
-    if v and not v.startswith('\${') and not v.startswith('$'):
-        print(f'{k}={v}')
-" 2>/dev/null || return 1
+    if v and not str(v).startswith('\${') and not str(v).startswith('$'):
+        print(f'{k}:::{v}')
+" 2>/dev/null)" || return 1
+
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    local k="${line%%:::*}"
+    local raw_v="${line#*:::}"
+    local dec_v
+    dec_v="$(secret_decrypt_value "$raw_v")"
+    printf '%s=%s\n' "$k" "$dec_v"
+  done <<< "$raw_pairs"
 }
 
 secret_set(){
@@ -405,26 +464,36 @@ secret_set(){
     remote) [[ -n "$identifier" ]] && src="$REMOTE_SECRETS_DIR/${identifier}.json" || return 1 ;;
   esac
   [[ -d "$(dirname "$src")" ]] || mkdir -p "$(dirname "$src")"
+
+  local enc_value
+  enc_value="$(secret_encrypt_value "$value")"
+
   if [[ -f "$src" ]]; then
     python3 -c "
 import json
 with open('$src','r') as f: data=json.load(f)
 secrets=data.get('secrets', data.get('keys', {}))
-secrets['$key']='$value'
+secrets['$key']='$enc_value'
 if 'secrets' in data: data['secrets']=secrets
 else: data['keys']=secrets
 with open('$src','w') as f: json.dump(data,f,indent=2)
-" 2>/dev/null || warn "Secrets aktualisierung fehlgeschlagen"
+" 2>/dev/null || warn "Secrets-Aktualisierung fehlgeschlagen"
   else
-    echo '{"secrets": {"'"$key"'": "'"$value"'"}}' | tee "$src" >/dev/null
+    python3 -c "
+import json
+data = {'version': 1, 'secrets': {'$key': '$enc_value'}}
+with open('$src','w') as f: json.dump(data,f,indent=2)
+" 2>/dev/null
   fi
-  ok "Secret $key gesetzt (scope=$scope, identifier=${identifier:-global})."
+  chmod 600 "$src" 2>/dev/null || true
+  ok "Secret $key verschlüsselt gespeichert (scope=$scope, identifier=${identifier:-global})."
 }
 
 secret_inject_docker(){
   local scope="${1:-global}" identifier="${2:-}"
   local envfile="/tmp/dax-secrets-${identifier:-global}.env"
   secret_get_envfile "$scope" "$identifier" > "$envfile" 2>/dev/null || { warn "Keine Secrets für Docker-Injektion gefunden (scope=$scope, identifier=$identifier)."; return 1; }
+  chmod 600 "$envfile" 2>/dev/null || true
   echo "$envfile"
 }
 
@@ -517,9 +586,13 @@ template_apply_remote(){
 }
 
 # =============================================================================
-# WATCHDOG (v1)
+# WATCHDOG (v2 — mit Auto-Recovery & Logging)
 # =============================================================================
 WATCHDOG_FILE="$STATE_DIR/watchdog.json"
+
+watchdog_log(){
+  printf '[%s] [%s] %s\n' "$(date '+%F %T')" "$1" "$2" | tee -a "$WATCHDOG_LOG" >> "$LOG_FILE"
+}
 
 watchdog_tick(){
   local service="$1" status="$2"
@@ -527,11 +600,62 @@ watchdog_tick(){
     python3 -c "
 import json
 with open('$WATCHDOG_FILE','r') as f: data=json.load(f)
-if '$service' in data: data['$service']['last_status']='$status'
-if '$service' not in data: data['$service']={'attempts':0,'last_status':'$status'}
+if '$service' in data:
+    data['$service']['last_status']='$status'
+    if '$status' == 'HEALTHY':
+        data['$service']['attempts']=0
+    else:
+        data['$service']['attempts']=data['$service'].get('attempts', 0) + 1
+else:
+    data['$service']={'attempts': 0 if '$status' == 'HEALTHY' else 1, 'last_status':'$status'}
 with open('$WATCHDOG_FILE','w') as f: json.dump(data,f,indent=2)
 " 2>/dev/null || true
   fi
+}
+
+watchdog_recover(){
+  local service="$1"
+  watchdog_log "RECOVERY" "Starte automatische Wiederherstellung für Dienst: $service"
+  case "$service" in
+    ollama)
+      if [[ "$CAN_LOCAL_OLLAMA" == true ]]; then
+        pkill -x ollama 2>/dev/null || true
+        sleep 1
+        nohup ollama serve >>"$LOG_DIR/ollama.log" 2>&1 &
+        echo $! > "$PID_DIR/ollama.pid"
+        watchdog_log "RECOVERY" "Ollama wurde neu gestartet."
+      fi
+      ;;
+    comfyui)
+      if [[ -f "$COMFYUI_DIR/main.py" ]]; then
+        local pid; pid="$(cat "$PID_DIR/comfyui.pid" 2>/dev/null || true)"
+        [[ -n "$pid" ]] && kill -9 "$pid" 2>/dev/null || true
+        start_comfyui >>"$LOG_FILE" 2>&1 || true
+        watchdog_log "RECOVERY" "ComfyUI wurde neu gestartet."
+      fi
+      ;;
+    docker)
+      if [[ "$DOCKER_DAEMON" == true ]]; then
+        docker restart dax-hermes dax-openclaw 2>/dev/null || true
+        watchdog_log "RECOVERY" "DAX Docker-Container wurden neu gestartet."
+      fi
+      ;;
+    agents.hermes)
+      agent_dispatch hermes stop 2>/dev/null || true
+      sleep 1
+      agent_dispatch hermes start 2>/dev/null || true
+      watchdog_log "RECOVERY" "Hermes Agent wurde neu gestartet."
+      ;;
+    agents.openclaw)
+      agent_dispatch openclaw stop 2>/dev/null || true
+      sleep 1
+      agent_dispatch openclaw start 2>/dev/null || true
+      watchdog_log "RECOVERY" "OpenClaw Agent wurde neu gestartet."
+      ;;
+    *)
+      watchdog_log "WARN" "Keine Recovery-Aktion für $service definiert."
+      ;;
+  esac
 }
 
 start_watchdog(){
@@ -543,48 +667,50 @@ start_watchdog(){
   (
     while true; do
       sleep 60
-      # Tick-All-Health: lies watchdog.json und prüft jedes Eintrag
-      if [[ -f "$WATCHDOG_FILE" ]]; then
-        python3 - <<'PY' 2>/dev/null || true
-import json, subprocess, sys
-with open('$WATCHDOG_FILE','r') as f: data=json.load(f)
-for svc, state in data.items():
-    if isinstance(state, dict) and 'last_status' in state:
-        # Einfache Health-Checks pro Dienst
-        if svc == 'docker':
-            ok = subprocess.run(['docker','info'], capture_output=True).returncode == 0
-            watchdog_tick('docker', 'HEALTHY' if ok else 'UNHEALTHY')
-        elif svc == 'ollama':
-            ok = subprocess.run(['pgrep','-x','ollama'], capture_output=True).returncode == 0
-            watchdog_tick('ollama', 'HEALTHY' if ok else 'STOPPED')
-        elif svc == 'comfyui':
-            ok = subprocess.run(['pgrep','-f','ComfyUI/main.py'], capture_output=True).returncode == 0
-            watchdog_tick('comfyui', 'HEALTHY' if ok else 'STOPPED')
-        elif svc.startswith('agents.'):
-            agent = svc.split('.',1)[1]
-            # Health über docker ps oder pgrep
-            ok = subprocess.run(['pgrep','-x',agent], capture_output=True).returncode == 0
-            watchdog_tick('agents.'+agent, 'HEALTHY' if ok else 'STOPPED')
-PY
+      # Health-Checks ausführen
+      if command_exists docker && docker info >/dev/null 2>&1; then
+        watchdog_tick "docker" "HEALTHY"
+      else
+        watchdog_tick "docker" "UNHEALTHY"
       fi
-      # Recovery-Trigger: bei 3 fehlgeschlagenen Versuchen
+
+      if pgrep -x ollama >/dev/null 2>&1; then
+        watchdog_tick "ollama" "HEALTHY"
+      fi
+
+      if pgrep -f "ComfyUI/main.py" >/dev/null 2>&1; then
+        watchdog_tick "comfyui" "HEALTHY"
+      fi
+
       if [[ -f "$WATCHDOG_FILE" ]]; then
-        python3 - <<'PY' 2>/dev/null || true
+        local to_recover
+        to_recover="$(python3 -c "
 import json
 with open('$WATCHDOG_FILE','r') as f: data=json.load(f)
 for svc, state in data.items():
     if isinstance(state, dict):
-        attempts = state.get('attempts', 0)
-        status = state.get('last_status', 'UNKNOWN')
-        if attempts >= 3 and status != 'HEALTHY':
-            print(f"WATCHDOG_RECOVERY_TRIGGER: {svc} (status={status}, attempts={attempts})")
-PY
+        if state.get('attempts', 0) >= 3 and state.get('last_status') != 'HEALTHY':
+            print(svc)
+" 2>/dev/null)"
+
+        for s in $to_recover; do
+          watchdog_recover "$s"
+          # Reset attempts nach Recovery-Versuch
+          python3 -c "
+import json
+with open('$WATCHDOG_FILE','r') as f: data=json.load(f)
+if '$s' in data and isinstance(data['$s'], dict):
+    data['$s']['attempts'] = 0
+with open('$WATCHDOG_FILE','w') as f: json.dump(data,f,indent=2)
+" 2>/dev/null || true
+        done
       fi
     done
   ) &
   local pid=$!
   echo "$pid" > "$pid_file"
-  ok "Watchdog gestartet (PID: $pid, tick: 60s)."
+  watchdog_log "INFO" "Watchdog Daemon gestartet (PID: $pid, Intervall: 60s)."
+  ok "Watchdog gestartet (PID: $pid, Intervall: 60s). Log: $WATCHDOG_LOG"
 }
 
 stop_watchdog(){
@@ -1021,12 +1147,12 @@ policy_manager(){
 secrets_manager(){
   while true; do
     clear 2>/dev/null || true
-    echo -e "${CLR_BLUE}=== DAX SECRETS MANAGER ===${CLR_RESET}"
-    echo "Current scope: global (ändert sich pro Sitzung)"
-    echo "[1] Scope wählen"
-    echo "[2] Secret setzen"
-    echo "[3] Secret auslesen"
-    echo "[4] Secrets-Datei anzeigen"
+    echo -e "${CLR_BLUE}=== DAX SECRETS MANAGER (AES-256 GCM / CBC) ===${CLR_RESET}"
+    echo "Current scope: ${SECRETS_SCOPE:-global} ${SECRETS_IDENTIFIER:+(ID: $SECRETS_IDENTIFIER)}"
+    echo "[1] Scope wählen (global, agent, remote)"
+    echo "[2] Secret sicher eingeben & verschlüsseln"
+    echo "[3] Secret entschlüsseln & anzeigen"
+    echo "[4] Secrets-Datei anzeigen (Rohdaten/verschlüsselt)"
     echo "[5] Secrets-Datei (Scope) anzeigen"
     echo "[6] Zurück"
     read -rp "Auswahl [1-6]: " c
@@ -1045,19 +1171,26 @@ secrets_manager(){
         pause_menu ;;
       2)
         read -rp "Key: " k
-        read -rp "Value (manuell eingeben, NICHT für sensible Daten): " v
-        secret_set "$k" "$v" "$SECRETS_SCOPE" "${SECRETS_IDENTIFIER:-}"
+        read -rsp "Secret-Wert (Eingabe wird verborgen): " v
+        echo ""
+        secret_set "$k" "$v" "${SECRETS_SCOPE:-global}" "${SECRETS_IDENTIFIER:-}"
         pause_menu ;;
       3)
         read -rp "Key: " k
-        secret_get "$k" "$SECRETS_SCOPE" "${SECRETS_IDENTIFIER:-}"
+        local val
+        val="$(secret_get "$k" "${SECRETS_SCOPE:-global}" "${SECRETS_IDENTIFIER:-}")"
+        if [[ -n "$val" ]]; then
+          echo -e "${CLR_GREEN}[✔] Entschlüsselter Wert für $k:${CLR_RESET} $val"
+        else
+          warn "Secret '$k' nicht gefunden oder leer."
+        fi
         pause_menu ;;
       4)
         [[ -f "$GLOBAL_SECRETS" ]] && cat "$GLOBAL_SECRETS" || warn "Globale Secrets-Datei fehlt."
         pause_menu ;;
       5)
         local src="$GLOBAL_SECRETS"
-        case "$SECRETS_SCOPE" in
+        case "${SECRETS_SCOPE:-global}" in
           agent) [[ -n "$SECRETS_IDENTIFIER" ]] && src="$AGENT_SECRETS_DIR/${SECRETS_IDENTIFIER}.json" || { warn "Agent-Identifier fehlt."; pause_menu; continue; } ;;
           remote) [[ -n "$SECRETS_IDENTIFIER" ]] && src="$REMOTE_SECRETS_DIR/${SECRETS_IDENTIFIER}.json" || { warn "Host-Identifier fehlt."; pause_menu; continue; } ;;
         esac
@@ -1103,12 +1236,14 @@ volume_manager(){
 # HEALTH / OPERATIONS
 # =============================================================================
 health_check(){
-  echo "=== DAX HEALTH ==="
+  echo "=== DAX HEALTH & WATCHDOG STATUS ==="
   printf "Platform : %s\n" "$PLATFORM"
   command_exists ollama && (pgrep -x ollama >/dev/null 2>&1 && echo "Ollama   : HEALTHY" || echo "Ollama   : STOPPED") || echo "Ollama   : REMOTE/MISSING"
   [[ -f "$COMFYUI_DIR/main.py" ]] && echo "ComfyUI  : INSTALLED" || echo "ComfyUI  : MISSING"
   [[ "$DOCKER_DAEMON" == true ]] && echo "Docker   : HEALTHY" && docker_agent_status || echo "Docker   : UNAVAILABLE"
   [[ "$CAN_KVM" == true ]] && echo "KVM      : HEALTHY" && (command_exists virsh && virsh -c qemu:///system list --all 2>/dev/null || true) || echo "KVM      : UNAVAILABLE"
+  echo ""
+  watchdog_status
 }
 
 show_state(){ persist_runtime_state; echo "=== DAX STATE ==="; cat "$STATE_FILE"; }
