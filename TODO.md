@@ -38,3 +38,16 @@ Dieses Dokument erfasst den aktuellen Fortschritt aller Arbeitsschritte und wird
 - [x] **5.2** Secrets-Verschlüsselung und -Entschlüsselung testen
 - [x] **5.3** Agent-Adapter Dispatch & Healthchecks testen
 - [x] **5.4** Walkthrough-Dokumentation erstellen und Abschlussbericht vorlegen
+
+---
+
+## 🔬 Phase 6: Automated Test Suite (100% Usecase-Abdeckung)
+- [x] **6.1** Gemeinsame Test-Bibliothek & Assertion-Engine (`tests/test_helper.sh`)
+- [x] **6.2** Modul-Test: Preflight & Capability Detection (`tests/test_preflight.sh`)
+- [x] **6.3** Modul-Test: Policy Engine (`tests/test_policy.sh`)
+- [x] **6.4** Modul-Test: Secrets Manager & AES-256 (`tests/test_secrets.sh`)
+- [x] **6.5** Modul-Test: Volume Manager (`tests/test_volumes.sh`)
+- [x] **6.6** Modul-Test: Template Engine (`tests/test_templates.sh`)
+- [x] **6.7** Modul-Test: Agent Adapter & Dispatch (`tests/test_adapters.sh`)
+- [x] **6.8** Modul-Test: Watchdog & Recovery (`tests/test_watchdog.sh`)
+- [x] **6.9** Master Test Runner (`tests/run_tests.sh`) mit 100% Reporting und Menü-Integration

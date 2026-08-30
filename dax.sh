@@ -31,7 +31,7 @@ log(){ printf '[%s] [%s] %s\n' "$(date '+%F %T')" "$1" "$2" | tee -a "$LOG_FILE"
 info(){ echo -e "${CLR_BLUE}[+]${CLR_RESET} $*"; log INFO "$*"; }
 ok(){ echo -e "${CLR_GREEN}[✔]${CLR_RESET} $*"; log OK "$*"; }
 warn(){ echo -e "${CLR_GOLD}[!]${CLR_RESET} $*"; log WARN "$*"; }
-die(){ echo -e "${CLR_RED}[✖]${CLR_RESET} $*" >&2; log ERROR "$*"; exit 1; }
+die(){ echo -e "${CLR_RED}[✖]${CLR_RESET} $*" >&2; log ERROR "$*"; return 1 2>/dev/null || exit 1; }
 command_exists(){ command -v "$1" >/dev/null 2>&1; }
 
 # =============================================================================
@@ -324,19 +324,37 @@ volume_ensure(){
     hermes_data)
       local host_path="/var/lib/dax/hermes"
       info "Volume hermes_data: Host-Pfad $host_path (docker_bind)"
-      $SUDO mkdir -p "$host_path" 2>/dev/null || true
+      if [[ $(id -u) -eq 0 ]]; then
+        mkdir -p "$host_path" 2>/dev/null || true
+      elif [[ -n "$SUDO" ]] && sudo -n true 2>/dev/null; then
+        $SUDO mkdir -p "$host_path" 2>/dev/null || true
+      else
+        mkdir -p "$host_path" 2>/dev/null || true
+      fi
       ok "Volume hermes_data bereit."
       ;;
     openclaw_data)
       local host_path="/var/lib/dax/openclaw"
       info "Volume openclaw_data: Host-Pfad $host_path (docker_bind)"
-      $SUDO mkdir -p "$host_path" 2>/dev/null || true
+      if [[ $(id -u) -eq 0 ]]; then
+        mkdir -p "$host_path" 2>/dev/null || true
+      elif [[ -n "$SUDO" ]] && sudo -n true 2>/dev/null; then
+        $SUDO mkdir -p "$host_path" 2>/dev/null || true
+      else
+        mkdir -p "$host_path" 2>/dev/null || true
+      fi
       ok "Volume openclaw_data bereit."
       ;;
     ollama_data)
       local host_path="/var/lib/dax/ollama"
       info "Volume ollama_data: Host-Pfad $host_path (docker_bind)"
-      $SUDO mkdir -p "$host_path" 2>/dev/null || true
+      if [[ $(id -u) -eq 0 ]]; then
+        mkdir -p "$host_path" 2>/dev/null || true
+      elif [[ -n "$SUDO" ]] && sudo -n true 2>/dev/null; then
+        $SUDO mkdir -p "$host_path" 2>/dev/null || true
+      else
+        mkdir -p "$host_path" 2>/dev/null || true
+      fi
       ok "Volume ollama_data bereit."
       ;;
     *) warn "Unbekanntes Volume: $vol"; return 1 ;;
@@ -345,7 +363,7 @@ volume_ensure(){
 
 volume_mount_docker(){
   local vol="$1"
-  volume_ensure "$vol"
+  volume_ensure "$vol" >/dev/null 2>&1 || true
   local host_path
   case "$vol" in
     hermes_data) host_path="/var/lib/dax/hermes" ;;
@@ -371,12 +389,14 @@ ensure_master_key(){
   if [[ ! -f "$MASTER_KEY_FILE" || ! -s "$MASTER_KEY_FILE" ]]; then
     if command_exists openssl; then
       openssl rand -hex 32 > "$MASTER_KEY_FILE"
-      chmod 600 "$MASTER_KEY_FILE"
+      chmod 600 "$MASTER_KEY_FILE" 2>/dev/null || true
       info "Neuer Master-Key generiert: $MASTER_KEY_FILE"
     else
       echo "dax-master-key-fallback-$(hostname 2>/dev/null || echo local)" > "$MASTER_KEY_FILE"
-      chmod 600 "$MASTER_KEY_FILE"
+      chmod 600 "$MASTER_KEY_FILE" 2>/dev/null || true
     fi
+  else
+    chmod 600 "$MASTER_KEY_FILE" 2>/dev/null || true
   fi
 }
 
@@ -1305,10 +1325,11 @@ main_menu(){
     echo "[16] Health / Watchdog Check"
     echo "[17] Installation verifizieren"
     echo "[18] State / Configuration anzeigen"
-    echo "[19] Dienste stoppen"
-    echo "[20] Logs anzeigen"
-    echo "[21] Beenden"
-    read -rp 'Auswahl [0-21]: ' choice
+    echo "[19] Automatisierte Testsuite ausführen (100% Validierung)"
+    echo "[20] Dienste stoppen"
+    echo "[21] Logs anzeigen"
+    echo "[22] Beenden"
+    read -rp 'Auswahl [0-22]: ' choice
     case "$choice" in
       0) show_preflight; pause_menu;;
       1) install_system_dependencies; pause_menu;;
@@ -1329,9 +1350,10 @@ main_menu(){
       16) health_check; watchdog_tick "health_check" "HEALTHY"; pause_menu;;
       17) verify_installations; pause_menu;;
       18) show_state; pause_menu;;
-      19) stop_services; pause_menu;;
-      20) view_logs;;
-      21) exit 0;;
+      19) "$SCRIPT_DIR/tests/run_tests.sh"; pause_menu;;
+      20) stop_services; pause_menu;;
+      21) view_logs;;
+      22) exit 0;;
       *) warn 'Ungültige Auswahl.'; sleep 1;;
     esac
   done
