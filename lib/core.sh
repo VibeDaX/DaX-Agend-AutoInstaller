@@ -12,6 +12,18 @@ warn(){ echo -e "${CLR_GOLD}[!]${CLR_RESET} $*"; log WARN "$*"; }
 die(){ echo -e "${CLR_RED}[✖]${CLR_RESET} $*" >&2; log ERROR "$*"; return 1 2>/dev/null || exit 1; }
 command_exists(){ command -v "$1" >/dev/null 2>&1; }
 
+ensure_venv(){
+  local venv_path="$1"
+  local desc="${2:-VENV}"
+  if [[ ! -d "$venv_path" ]]; then
+    info "Erstelle Python VENV für $desc ($venv_path)..."
+    python3 -m venv "$venv_path" >>"$LOG_FILE" 2>&1 || {
+      warn "VENV Erstellung mit python3 -m venv fehlgeschlagen, versuche Alternative..."
+      python3 -m venv --without-pip "$venv_path" >>"$LOG_FILE" 2>&1 || return 1
+    }
+  fi
+}
+
 # Plattform-Erkennung
 IS_TERMUX=false; IS_PROOT=false; IS_WSL=false; PLATFORM="linux"; OS_NAME="Linux"
 if [[ -d "/data/data/com.termux/files/usr" ]]; then
