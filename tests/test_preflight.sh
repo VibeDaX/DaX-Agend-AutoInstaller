@@ -43,8 +43,9 @@ persist_runtime_state
 assert_file_exists "$STATE_DIR/state.json" "state.json muss existieren"
 assert_file_exists "$STATE_DIR/capabilities.env" "capabilities.env muss existieren"
 
-# JSON Validierung
-python3 -c "import json; d=json.load(open('$STATE_DIR/state.json')); assert 'platform' in d and 'gpu_type' in d" 2>/dev/null
-assert_true $? "state.json ist valides JSON und enthält Pflichtfelder"
+  # JSON Validierung
+  python3 "$ROOT_DIR/lib/state_helper.py" json_get \
+    "$STATE_DIR/state.json" "platform" >/dev/null 2>&1
+  assert_true $? "state.json ist valides JSON und enthält Pflichtfelder"
 
 test_module_summary

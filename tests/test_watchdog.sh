@@ -19,39 +19,30 @@ assert_file_exists "$WATCHDOG_FILE" "watchdog.json muss existieren"
 it "Watchdog Tick-Mechanismus & Attempt-Zähler"
 # Setze initial HEALTHY -> attempts=0
 watchdog_tick "test_unit_service" "HEALTHY"
-STATE_HEALTHY="$(python3 -c "
-import json
-with open('$WATCHDOG_FILE') as f: d=json.load(f)
-print(d['test_unit_service']['last_status'], d['test_unit_service']['attempts'])
-")"
-assert_eq "HEALTHY 0" "$STATE_HEALTHY" "HEALTHY Status setzt attempts auf 0"
+STATE_HEALTHY="$(python3 "$ROOT_DIR/lib/state_helper.py" json_get \
+  "$WATCHDOG_FILE" "test_unit_service.attempts")"
+STATE_HEALTHY_STATUS="$(python3 "$ROOT_DIR/lib/state_helper.py" json_get \
+  "$WATCHDOG_FILE" "test_unit_service.last_status")"
+assert_eq "0" "$STATE_HEALTHY" "HEALTHY Status setzt attempts auf 0"
+assert_eq "HEALTHY" "$STATE_HEALTHY_STATUS" "HEALTHY Status wird gespeichert"
 
 # Setze Fehler 1
 watchdog_tick "test_unit_service" "STOPPED"
-ATTEMPTS_1="$(python3 -c "
-import json
-with open('$WATCHDOG_FILE') as f: d=json.load(f)
-print(d['test_unit_service']['attempts'])
-")"
+ATTEMPTS_1="$(python3 "$ROOT_DIR/lib/state_helper.py" json_get \
+  "$WATCHDOG_FILE" "test_unit_service.attempts")"
 assert_eq "1" "$ATTEMPTS_1" "Erster Fehler erhöht attempts auf 1"
 
 # Setze Fehler 2 & 3
 watchdog_tick "test_unit_service" "STOPPED"
 watchdog_tick "test_unit_service" "STOPPED"
-ATTEMPTS_3="$(python3 -c "
-import json
-with open('$WATCHDOG_FILE') as f: d=json.load(f)
-print(d['test_unit_service']['attempts'])
-")"
+ATTEMPTS_3="$(python3 "$ROOT_DIR/lib/state_helper.py" json_get \
+  "$WATCHDOG_FILE" "test_unit_service.attempts")"
 assert_eq "3" "$ATTEMPTS_3" "Dritter Fehler erhöht attempts auf 3"
 
 # Erneut HEALTHY -> Reset
 watchdog_tick "test_unit_service" "HEALTHY"
-ATTEMPTS_RESET="$(python3 -c "
-import json
-with open('$WATCHDOG_FILE') as f: d=json.load(f)
-print(d['test_unit_service']['attempts'])
-")"
+ATTEMPTS_RESET="$(python3 "$ROOT_DIR/lib/state_helper.py" json_get \
+  "$WATCHDOG_FILE" "test_unit_service.attempts")"
 assert_eq "0" "$ATTEMPTS_RESET" "Gesunder Status setzt attempts zuverlässig auf 0 zurück"
 
 it "Watchdog-Recovery Logging"
@@ -66,11 +57,7 @@ assert_match "(RUNNING|STOPPED)" "$STATUS_OUTPUT" "watchdog_status gibt aktuelle
 assert_match "test_unit_service" "$STATUS_OUTPUT" "watchdog_status gibt den State-JSON Inhalt wieder"
 
 # Cleanup
-python3 -c "
-import json
-with open('$WATCHDOG_FILE', 'r') as f: d=json.load(f)
-if 'test_unit_service' in d: del d['test_unit_service']
-with open('$WATCHDOG_FILE', 'w') as f: json.dump(d, f, indent=2)
-" 2>/dev/null
+python3 "$ROOT_DIR/lib/state_helper.py" json_del_secret \
+  "$WATCHDOG_FILE" "test_unit_service" 2>/dev/null || true
 
 test_module_summary

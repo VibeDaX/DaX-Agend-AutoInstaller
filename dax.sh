@@ -100,7 +100,7 @@ install_ollama(){
     info "Starte Ollama Service..."
     nohup ollama serve >/dev/null 2>&1 &
     echo $! > "$PID_DIR/ollama.pid"
-    sleep 2
+    wait_for_port 11434 30 || warn "Ollama Port 11434 nicht erreichbar."
   fi
   ok "Ollama läuft und ist erreichbar."
 }
@@ -146,6 +146,7 @@ start_comfyui(){
   nohup python3 "$COMFYUI_DIR/main.py" --listen 0.0.0.0 --port 8188 >/dev/null 2>&1 &
   echo $! > "$PID_DIR/comfyui.pid"
   deactivate
+  wait_for_port 8188 30 || warn "ComfyUI Port 8188 nicht erreichbar."
   ok "ComfyUI gestartet auf http://localhost:8188"
 }
 
@@ -168,6 +169,7 @@ start_openwebui(){
   nohup open-webui serve >/dev/null 2>&1 &
   echo $! > "$PID_DIR/openwebui.pid"
   deactivate
+  wait_for_port 8080 30 || warn "Open WebUI Port 8080 nicht erreichbar."
   ok "Open WebUI gestartet auf http://localhost:8080"
 }
 
@@ -412,6 +414,341 @@ menu_operations(){
   done
 }
 
+menu_help(){
+  while true; do
+    clear 2>/dev/null || true
+    echo -e "${CLR_BLUE}=== [6] HILFE & ANLEITUNG ===${CLR_RESET}"
+    echo "1) Hauptmenü erklärt"
+    echo "2) Kategorie [1] HOST & Hardware"
+    echo "3) Kategorie [2] RUNTIMES"
+    echo "4) Kategorie [3] CONTROL-PLANE MODULES"
+    echo "5) Kategorie [4] SERVICES"
+    echo "6) Kategorie [5] OPERATIONS"
+    echo "7) Schritt-für-Schritt Anleitungen (Workflows)"
+    echo "8) Zurück ins Hauptmenü"
+    read -rp 'Auswahl [1-8]: ' c
+    clear 2>/dev/null || true
+    case "$c" in
+      1) help_main ;;
+      2) help_host ;;
+      3) help_runtimes ;;
+      4) help_control_plane ;;
+      5) help_services ;;
+      6) help_operations ;;
+      7) help_workflows ;;
+      8) return 0 ;;
+      *) warn 'Ungültige Auswahl.'; sleep 1 ;;
+    esac
+  done
+}
+
+help_main(){
+  clear 2>/dev/null || true
+  echo -e "${CLR_GOLD}╔══════════════════════════════════════════════════════════════════╗${CLR_RESET}"
+  echo -e "${CLR_GOLD}║${CLR_WHITE}  DAX COMMAND CENTER — HAUPTMENÜ ERKLÄRT                     ${CLR_GOLD}║${CLR_RESET}"
+  echo -e "${CLR_GOLD}╚══════════════════════════════════════════════════════════════════╝${CLR_RESET}"
+  echo
+  echo "Das Hauptmenü ist in 5 Kategorien plus Beenden unterteilt:"
+  echo
+  echo -e "${CLR_GREEN}[1] HOST (Preflight Matrix & Hardware Check)${CLR_RESET}"
+  echo "    Zeigt Informationen über dein System, Betriebssystem, GPU und"
+  echo "    Virtualisierungsfähigkeiten. Nutze dies zuerst, um die Umgebung"
+  echo "    zu verstehen."
+  echo
+  echo -e "${CLR_GREEN}[2] RUNTIMES (Native, Docker, KVM, Remote)${CLR_RESET}"
+  echo "    Verwaltet die Laufzeitumgebungen, in denen KI-Agenten und Services"
+  echo "    ausgeführt werden können."
+  echo
+  echo -e "${CLR_GREEN}[3] CONTROL-PLANE MODULES${CLR_RESET}"
+  echo "    Zentrale Verwaltung von Agenten, Richtlinien, Secrets, Volumes,"
+  echo "    Templates, Backups und dem Web-Dashboard."
+  echo
+  echo -e "${CLR_GREEN}[4] SERVICES${CLR_RESET}"
+  echo "    Installation und Verwaltung von Ollama (LLM), ComfyUI (Bilder),"
+  echo "    Open WebUI (Chat), Node-RED und Faster-Whisper (Spracherkennung)."
+  echo
+  echo -e "${CLR_GREEN}[5] OPERATIONS & MONITORING${CLR_RESET}"
+  echo "    Health-Checks, Watchdog, Tests, Logs und Service-Stopp."
+  echo
+  echo -e "${CLR_RED}[6] Beenden${CLR_RESET}"
+  echo "    Schließt das Command Center sauber."
+  echo
+  pause_menu
+}
+
+help_host(){
+  clear 2>/dev/null || true
+  echo -e "${CLR_GOLD}╔══════════════════════════════════════════════════════════════════╗${CLR_RESET}"
+  echo -e "${CLR_GOLD}║${CLR_WHITE}  KATEGORIE [1] — HOST & HARDWARE MATRIX                       ${CLR_GOLD}║${CLR_RESET}"
+  echo -e "${CLR_GOLD}╚══════════════════════════════════════════════════════════════════╝${CLR_RESET}"
+  echo
+  echo "Zweck:"
+  echo "  Erkennt automatisch dein Betriebssystem, verfügbare Hardware und"
+  echo "  Virtualisierungsoptionen."
+  echo
+  echo "Menüpunkte:"
+  echo "  [1] System / Capability Check (Preflight Matrix)"
+  echo "      Führt einen vollständigen Hardware- und Fähigkeits-Check durch."
+  echo "      Zeigt an:"
+  echo "        • Plattform (Linux, WSL2, Termux, PRoot)"
+  echo "        • GPU-Typ (NVIDIA CUDA, AMD ROCm, Intel Arc, Apple MPS, CPU)"
+  echo "        • Docker-Verfügbarkeit"
+  echo "        • KVM/libvirt-Unterstützung"
+  echo "        • Gesamter RAM und Empfehlungen für LLM-Modelle"
+  echo
+  echo "  [2] Zurück"
+  echo
+  echo "Schritt-für-Schritt:"
+  echo "  1. Wähle [1] im Hauptmenü."
+  echo "  2. Das System analysiert automatisch deine Hardware."
+  echo "  3. Die Ergebnisse werden gespeichert in .dax/state.json."
+  echo "  4. Nutze diese Informationen, um zu entscheiden, welche Runtimes"
+  echo "     und Services du nutzen kannst."
+  echo
+  pause_menu
+}
+
+help_runtimes(){
+  clear 2>/dev/null || true
+  echo -e "${CLR_GOLD}╔══════════════════════════════════════════════════════════════════╗${CLR_RESET}"
+  echo -e "${CLR_GOLD}║${CLR_WHITE}  KATEGORIE [2] — RUNTIMES                                    ${CLR_GOLD}║${CLR_RESET}"
+  echo -e "${CLR_GOLD}╚══════════════════════════════════════════════════════════════════╝${CLR_RESET}"
+  echo
+  echo "Zweck:"
+  echo "  Runtimes sind die Umgebungen, in denen KI-Agenten und Services"
+  echo "  ausgeführt werden. DAX unterstützt vier Runtime-Typen."
+  echo
+  echo "Menüpunkte:"
+  echo "  [1] Native Runtime / System Dependencies"
+  echo "      Installiert Python, pip, VENVs und System-Tools direkt auf"
+  echo "      dem Host. Am besten für einzelne Agenten ohne Container."
+  echo
+  echo "  [2] Docker Runtime"
+  echo "      Installiert Docker und Docker Compose. Bietet Isolation und"
+  echo "      reproduzierbare Umgebungen."
+  echo
+  echo "  [3] KVM / VM Runtime"
+  echo "      Verwaltet virtuelle Maschinen mit QEMU/KVM. Nur auf nativen"
+  echo "      Linux-Systemen verfügbar."
+  echo
+  echo "  [4] Remote Runtime"
+  echo "      Orchestriert Agenten auf entfernten Servern per SSH."
+  echo
+  echo "  [5] Zurück"
+  echo
+  echo "Schritt-für-Schritt (Docker Beispiel):"
+  echo "  1. Wähle [2] RUNTIMES im Hauptmenü."
+  echo "  2. Wähle [2] Docker Runtime."
+  echo "  3. Wähle [1] Docker & Compose installieren."
+  echo "  4. Wähle [2] Shared Context initialisieren (erstellt Ordner)."
+  echo "  5. Wähle [3] Stack starten, sobald compose.yml bereit ist."
+  echo
+  pause_menu
+}
+
+help_control_plane(){
+  clear 2>/dev/null || true
+  echo -e "${CLR_GOLD}╔══════════════════════════════════════════════════════════════════╗${CLR_RESET}"
+  echo -e "${CLR_GOLD}║${CLR_WHITE}  KATEGORIE [3] — CONTROL-PLANE MODULES                        ${CLR_GOLD}║${CLR_RESET}"
+  echo -e "${CLR_GOLD}╚══════════════════════════════════════════════════════════════════╝${CLR_RESET}"
+  echo
+  echo "Zweck:"
+  echo "  Diese Module steuern die gesamte Control-Plane-Architektur."
+  echo
+  echo "Menüpunkte:"
+  echo "  [1] Agent Manager / Deployment Wizard"
+  echo "      Installiert, startet, stoppt und überwacht KI-Agenten."
+  echo "      Agenten: Hermes 2.0 und OpenClaw."
+  echo
+  echo "  [2] Agent Profiles (Manifeste)"
+  echo "      Zeigt die Konfiguration der Agenten (Runtimes, Abhängigkeiten)."
+  echo
+  echo "  [3] Policy Manager (.dax/policy.yaml)"
+  echo "      Verwaltet Regeln, welche Runtimes auf welchen Plattformen"
+  echo "      erlaubt sind. Verhindert inkompatible Ausführungen."
+  echo
+  echo "  [4] Volume Manager (.dax/volumes.yaml)"
+  echo "      Definiert persistente Speicherbereiche für Agenten und Services."
+  echo
+  echo "  [5] Secrets Manager (AES-256)"
+  echo "      Verschlüsselt API-Keys und Passwörter mit OpenSSL."
+  echo "      Secrets werden on-the-fly entschlüsselt und nie im Klartext"
+  echo "      gespeichert."
+  echo
+  echo "  [6] Template Manager"
+  echo "      Verwaltet Vorlagen für Docker Compose, VMs und Remote-Hosts."
+  echo
+  echo "  [7] Encrypted Backup & Restore"
+  echo "      Erstellt AES-256 verschlüsselte Backups von .dax/ und"
+  echo "      kann diese wiederherstellen."
+  echo
+  echo "  [8] Web Status Dashboard & API (Port 9090)"
+  echo "      Startet einen Webserver mit Live-Monitoring und JSON-API."
+  echo
+  echo "  [9] Zurück"
+  echo
+  echo "Schritt-für-Schritt (Agent starten):"
+  echo "  1. Wähle [3] CONTROL-PLANE MODULES."
+  echo "  2. Wähle [1] Agent Manager."
+  echo "  3. Folge dem Wizard: Agent auswählen → Runtime wählen → Installieren."
+  echo "  4. Nach der Installation: Starten und Status prüfen."
+  echo "  5. Nutze [8] Dashboard, um den Live-Status zu sehen."
+  echo
+  pause_menu
+}
+
+help_services(){
+  clear 2>/dev/null || true
+  echo -e "${CLR_GOLD}╔══════════════════════════════════════════════════════════════════╗${CLR_RESET}"
+  echo -e "${CLR_GOLD}║${CLR_WHITE}  KATEGORIE [4] — SERVICES                                     ${CLR_GOLD}║${CLR_RESET}"
+  echo -e "${CLR_GOLD}╚══════════════════════════════════════════════════════════════════╝${CLR_RESET}"
+  echo
+  echo "Zweck:"
+  echo "  Installation und Verwaltung von KI-Diensten und Tools."
+  echo
+  echo "Menüpunkte:"
+  echo "  [1] Ollama konfigurieren & starten"
+  echo "      Lokale LLM-Inferenz-Engine. Lädt Modelle von ollama.com."
+  echo
+  echo "  [2] Ollama Modell laden"
+  echo "      Lädt ein LLM-Modell herunter. Prüft automatisch den RAM."
+  echo "      Empfohlen: llama3:8b für 8GB+ RAM, qwen2:7b für 4GB+ RAM."
+  echo
+  echo "  [3] ComfyUI installieren/starten"
+  echo "      Grafische Benutzeroberfläche für Stable Diffusion."
+  echo "      Port: 8188. Benötigt NVIDIA GPU für optimale Leistung."
+  echo
+  echo "  [4] Open WebUI installieren/starten"
+  echo "      Chat-Interface für lokale LLMs (Ollama)."
+  echo "      Port: 8080."
+  echo
+  echo "  [5] Node-RED + Faster-Whisper"
+  echo "      Node-RED: Visuelle Automatisierung (Port 1880)."
+  echo "      Faster-Whisper: Spracherkennung (STT) über Docker API (Port 8000)."
+  echo
+  echo "  [6] Zurück"
+  echo
+  echo "Schritt-für-Schritt (Ollama + Modell):"
+  echo "  1. Wähle [4] SERVICES."
+  echo "  2. Wähle [1] Ollama konfigurieren → automatische Installation."
+  echo "  3. Wähle [2] Ollama Modell laden."
+  echo "  4. Modellnamen eingeben, z.B. 'llama3:8b'."
+  echo "  5. Warte bis Download abgeschlossen ist."
+  echo "  6. Modell ist einsatzbereit unter http://localhost:11434"
+  echo
+  pause_menu
+}
+
+help_operations(){
+  clear 2>/dev/null || true
+  echo -e "${CLR_GOLD}╔══════════════════════════════════════════════════════════════════╗${CLR_RESET}"
+  echo -e "${CLR_GOLD}║${CLR_WHITE}  KATEGORIE [5] — OPERATIONS & MONITORING                      ${CLR_GOLD}║${CLR_RESET}"
+  echo -e "${CLR_GOLD}╚══════════════════════════════════════════════════════════════════╝${CLR_RESET}"
+  echo
+  echo "Zweck:"
+  echo "  Überwachung, Tests und Wartung der gesamten Installation."
+  echo
+  echo "Menüpunkte:"
+  echo "  [1] Health / Watchdog Check"
+  echo "      Prüft den Status aller laufenden Dienste."
+  echo "      Bei Fehlern (≥3 Versuche) löst der Watchdog automatisch"
+  echo "      einen Neustart aus."
+  echo
+  echo "  [2] Installation verifizieren"
+  echo "      Führt den Preflight-Check erneut aus und prüft, ob alle"
+  echo "      Tools installiert sind."
+  echo
+  echo "  [3] State / Configuration anzeigen"
+  echo "      Zeigt die aktuelle Konfiguration und den Systemzustand"
+  echo "      aus .dax/state.json."
+  echo
+  echo "  [4] Automatisierte Testsuite"
+  echo "      Führt alle 8 Testmodule aus (100% Validierung)."
+  echo "      Dauer: ca. 9 Sekunden."
+  echo
+  echo "  [5] Dienste stoppen"
+  echo "      Beendet alle gestarteten Dienste sauber."
+  echo
+  echo "  [6] Logs anzeigen"
+  echo "      Zeigt die letzten 60 Zeilen von installation.log und"
+  echo "      watchdog.log in Echtzeit an."
+  echo
+  echo "  [7] Zurück"
+  echo
+  echo "Schritt-für-Schritt (Tests ausführen):"
+  echo "  1. Wähle [5] OPERATIONS."
+  echo "  2. Wähle [4] Automatisierte Testsuite."
+  echo "  3. Die Tests laufen automatisch durch."
+  echo "  4. Am Ende siehst du eine Zusammenfassung (Module gesamt /"
+  echo "     bestanden / fehlgeschlagen)."
+  echo
+  pause_menu
+}
+
+help_workflows(){
+  clear 2>/dev/null || true
+  echo -e "${CLR_GOLD}╔══════════════════════════════════════════════════════════════════╗${CLR_RESET}"
+  echo -e "${CLR_GOLD}║${CLR_WHITE}  SCHRITT-FÜR-SCHRITT ANLEITUNGEN (WORKFLOWS)                  ${CLR_GOLD}║${CLR_RESET}"
+  echo -e "${CLR_GOLD}╚══════════════════════════════════════════════════════════════════╝${CLR_RESET}"
+  echo
+  echo -e "${CLR_BLUE}Workflow 1: Erstinstallation & System-Check${CLR_RESET}"
+  echo "  1. ./start.sh ausführen (oder ./dax.sh direkt)."
+  echo "  2. Hauptmenü → [1] HOST → [1] System Check."
+  echo "  3. Notiere dir GPU-Typ und RAM aus der Ausgabe."
+  echo "  4. Hauptmenü → [2] RUNTIMES → [1] Native Dependencies."
+  echo "  5. Fertig — Basis-System ist einsatzbereit."
+  echo
+  echo -e "${CLR_BLUE}Workflow 2: Ollama LLM einrichten${CLR_RESET}"
+  echo "  1. Hauptmenü → [4] SERVICES → [1] Ollama installieren."
+  echo "  2. Warten bis Installation abgeschlossen ist."
+  echo "  3. [2] Ollama Modell laden, z.B. 'llama3:8b'."
+  echo "  4. Testen: curl http://localhost:11434/api/generate"
+  echo
+  echo -e "${CLR_BLUE}Workflow 3: ComfyUI mit GPU starten${CLR_RESET}"
+  echo "  1. Hauptmenü → [4] SERVICES → [3] ComfyUI installieren."
+  echo "  2. ComfyUI wird automatisch gestartet (Port 8188)."
+  echo "  3. Öffne http://localhost:8188 im Browser."
+  echo "  4. Für Docker-Stack: [2] RUNTIMES → [2] Docker → Stack starten."
+  echo
+  echo -e "${CLR_BLUE}Workflow 4: Agenten deployen (Native)${CLR_RESET}"
+  echo "  1. Hauptmenü → [3] CONTROL-PLANE MODULES → [1] Agent Manager."
+  echo "  2. Agent auswählen (Hermes oder OpenClaw)."
+  echo "  3. Runtime 'native' wählen."
+  echo "  4. Installation bestätigen."
+  echo "  5. Status prüfen: muss 'RUNNING' anzeigen."
+  echo
+  echo -e "${CLR_BLUE}Workflow 5: Backup erstellen & wiederherstellen${CLR_RESET}"
+  echo "  1. Hauptmenü → [3] CONTROL-PLANE MODULES → [7] Backup & Restore."
+  echo "  2. Option [1] Neues AES-256 Backup erstellen."
+  echo "  3. Backup-Datei liegt in data/backups/*.tar.gz.enc."
+  echo "  4. Zum Wiederherstellen: Option [3] und Dateinamen eingeben."
+  echo
+  echo -e "${CLR_BLUE}Workflow 6: Web-Dashboard nutzen${CLR_RESET}"
+  echo "  1. Hauptmenü → [3] CONTROL-PLANE MODULES → [8] Dashboard."
+  echo "  2. Option [1] Web Dashboard starten."
+  echo "  3. Öffne http://localhost:9090 im Browser."
+  echo "  4. JSON-API verfügbar unter http://localhost:9090/api/status."
+  echo
+  echo -e "${CLR_BLUE}Workflow 7: Secrets sicher speichern${CLR_RESET}"
+  echo "  1. Hauptmenü → [3] CONTROL-PLANE MODULES → [5] Secrets Manager."
+  echo "  2. Neues Secret eingeben (Key + Wert + Scope)."
+  echo "  3. Der Wert wird mit AES-256 verschlüsselt in .dax/secrets/ gespeichert."
+  echo "  4. Zur Laufzeit wird er automatisch entschlüsselt."
+  echo
+  echo -e "${CLR_BLUE}Workflow 8: Fehlerbehandlung${CLR_RESET}"
+  echo "  • Dienst startet nicht:"
+  echo "    → [5] OPERATIONS → [6] Logs anzeigen, Fehler suchen."
+  echo "    → [5] OPERATIONS → [1] Health Check, um Neustart zu erzwingen."
+  echo "  • Tests schlagen fehl:"
+  echo "    → Prüfe .dax/watchdog.json auf fehlgeschlagene Dienste."
+  echo "    → Prüfe logs/watchdog.log auf Recovery-Meldungen."
+  echo "  • Docker-Stack startet nicht:"
+  echo "    → [2] RUNTIMES → [2] Docker Runtime → Status prüfen."
+  echo "    → Prüfe ob compose.yml im docker/-Ordner existiert."
+  echo
+  pause_menu
+}
+
 # =============================================================================
 # MAIN MENU (TOP-LEVEL CATEGORIES)
 # =============================================================================
@@ -442,8 +779,9 @@ main_menu(){
     echo "[3] CONTROL-PLANE MODULES (Agents, Policy, Secrets, Backups, Dashboard)"
     echo "[4] SERVICES (Ollama, ComfyUI, Open WebUI, Node-RED/Whisper)"
     echo "[5] OPERATIONS (Watchdog, Tests, State, Stop, Logs)"
-    echo "[6] Beenden"
-    read -rp 'Auswahl [1-6]: ' choice
+    echo "[6] Hilfe & Anleitung"
+    echo "[7] Beenden"
+    read -rp 'Auswahl [1-7]: ' choice
     clear 2>/dev/null || true
     case "$choice" in
       1) menu_host ;;
@@ -451,7 +789,8 @@ main_menu(){
       3) menu_control_plane ;;
       4) menu_services ;;
       5) menu_operations ;;
-      6) exit 0 ;;
+      6) menu_help ;;
+      7) exit 0 ;;
       *) warn 'Ungültige Auswahl.'; sleep 1 ;;
     esac
   done

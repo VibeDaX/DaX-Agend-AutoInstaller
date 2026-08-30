@@ -29,28 +29,8 @@ watchdog_tick(){
   local status="$2"
   watchdog_ensure
 
-  python3 -c "
-import json
-path = '$WATCHDOG_FILE'
-with open(path, 'r') as f: d = json.load(f)
-svc = '$service'
-st = '$status'
-
-if svc in d:
-    node = d[svc]
-else:
-    node = {'attempts': 0, 'last_status': 'UNKNOWN'}
-
-if st == 'HEALTHY':
-    node['attempts'] = 0
-else:
-    node['attempts'] = node.get('attempts', 0) + 1
-
-node['last_status'] = st
-d[svc] = node
-
-with open(path, 'w') as f: json.dump(d, f, indent=2)
-" 2>/dev/null
+  python3 "$SCRIPT_DIR/lib/state_helper.py" update_watchdog \
+    "$WATCHDOG_FILE" "$service" "$status" 2>/dev/null
 }
 
 watchdog_recover(){

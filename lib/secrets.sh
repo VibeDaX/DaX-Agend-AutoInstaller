@@ -79,16 +79,8 @@ EOF
   local enc_val
   enc_val="$(secret_encrypt_value "$val")"
 
-  python3 -c "
-import json
-path = '$target_file'
-with open(path, 'r') as f: d = json.load(f)
-sec = d.get('secrets', d.get('keys', {}))
-sec['$key'] = '$enc_val'
-if 'secrets' in d: d['secrets'] = sec
-else: d['keys'] = sec
-with open(path, 'w') as f: json.dump(d, f, indent=2)
-" 2>/dev/null
+  python3 "$SCRIPT_DIR/lib/state_helper.py" json_set_secret \
+    "$target_file" "$key" "$enc_val" 2>/dev/null
   ok "Secret $key verschlüsselt gespeichert (scope=$scope, identifier=$id)."
 }
 
@@ -110,13 +102,8 @@ secret_get(){
   [[ -f "$target_file" ]] || return 0
 
   local enc_val
-  enc_val=$(python3 -c "
-import json
-path = '$target_file'
-with open(path, 'r') as f: d = json.load(f)
-sec = d.get('secrets', d.get('keys', {}))
-print(sec.get('$key', ''))
-" 2>/dev/null)
+  enc_val="$(python3 "$SCRIPT_DIR/lib/state_helper.py" json_get_secret \
+    "$target_file" "$key" 2>/dev/null)"
 
   if [[ -n "$enc_val" ]]; then
     secret_decrypt_value "$enc_val"
@@ -133,23 +120,8 @@ secret_get_envfile(){
   esac
   [[ -f "$target_file" ]] || return 0
 
-  python3 -c "
-import json, subprocess
-path = '$target_file'
-with open(path, 'r') as f: d = json.load(f)
-sec = d.get('secrets', d.get('keys', {}))
-for k, v in sec.items():
-    if v.startswith('\${') and v.endswith('}'): continue
-    if v.startswith('enc:'):
-        raw = v[4:]
-        try:
-            res = subprocess.check_output(['openssl', 'enc', '-d', '-aes-256-cbc', '-pbkdf2', '-salt', '-pass', 'file:$MASTER_KEY_FILE', '-a', '-A'], input=raw.encode()).decode().strip()
-            print(f'{k}={res}')
-        except Exception:
-            pass
-    else:
-        print(f'{k}={v}')
-" 2>/dev/null
+  python3 "$SCRIPT_DIR/lib/state_helper.py" print_envfile \
+    "$target_file" "$MASTER_KEY_FILE" 2>/dev/null
 }
 
 secret_inject_docker(){

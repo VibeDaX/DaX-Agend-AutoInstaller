@@ -119,6 +119,7 @@ with socketserver.TCPServer(('', PORT), DashboardHandler) as httpd:
 " >/dev/null 2>&1 &
   local pid=$!
   echo "$pid" > "$DASHBOARD_PID_FILE"
+  wait_for_port "$DASHBOARD_PORT" 10 || warn "Dashboard Port $DASHBOARD_PORT nicht erreichbar."
   ok "Web Dashboard gestartet auf http://localhost:$DASHBOARD_PORT (PID: $pid)"
 }
 

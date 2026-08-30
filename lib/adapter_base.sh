@@ -93,13 +93,12 @@ adapter_base_start(){
   nohup "$exec_bin" >>"$log" 2>&1 &
   local pid=$!
   echo "$pid" > "$pid_file"
-  sleep 1
 
-  if kill -0 "$pid" 2>/dev/null; then
+  if wait_for_process "$pid" 10; then
     ok "$agent Agent erfolgreich gestartet (PID: $pid). Log: $log"
     watchdog_tick "agents.$agent" "HEALTHY"
   else
-    warn "$agent Start fehlgeschlagen. Siehe Log: $log"
+    warn "$agent Start fehlgeschlagen oder Prozess nicht stabil. Siehe Log: $log"
     watchdog_tick "agents.$agent" "STOPPED"
     return 1
   fi
@@ -116,7 +115,7 @@ adapter_base_stop(){
     pid="$(cat "$pid_file" 2>/dev/null || true)"
     if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
       kill "$pid" 2>/dev/null || true
-      sleep 1
+      wait_for_process "$pid" 5 || true
       kill -9 "$pid" 2>/dev/null || true
       stopped=true
     fi

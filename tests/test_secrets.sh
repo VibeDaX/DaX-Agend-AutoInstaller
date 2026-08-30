@@ -75,15 +75,11 @@ secret_get "SOME_KEY" "agent" "" >/dev/null 2>&1
 assert_false $? "Aufruf von scope=agent ohne Identifier scheitert mit Fehlercode"
 
 # Cleanup der Test-Keys
-python3 -c "
-import json
-for path, key in [('$GLOBAL_SECRETS', 'GLOBAL_TEST_KEY'), ('$AGENT_FILE', 'HERMES_AUTH_TOKEN'), ('$REMOTE_FILE', 'SSH_KEY')]:
-    try:
-        with open(path, 'r') as f: data = json.load(f)
-        sec = data.get('secrets', data.get('keys', {}))
-        if key in sec: del sec[key]
-        with open(path, 'w') as f: json.dump(data, f, indent=2)
-    except Exception: pass
-" 2>/dev/null
+for path_key in "$GLOBAL_SECRETS:GLOBAL_TEST_KEY" "$AGENT_FILE:HERMES_AUTH_TOKEN" "$REMOTE_FILE:SSH_KEY"; do
+  p="${path_key%%:*}"
+  k="${path_key##*:}"
+  [[ -f "$p" ]] || continue
+  python3 "$ROOT_DIR/lib/state_helper.py" json_del_secret "$p" "$k" 2>/dev/null || true
+done
 
 test_module_summary

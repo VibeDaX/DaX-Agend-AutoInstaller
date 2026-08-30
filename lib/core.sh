@@ -145,6 +145,47 @@ ram_recommendation(){
   fi
 }
 
+wait_for_port(){
+  local port="$1"
+  local timeout="${2:-30}"
+  local start_time
+  start_time=$(date +%s)
+  while true; do
+    if command_exists nc && nc -z localhost "$port" 2>/dev/null; then
+      return 0
+    fi
+    if command_exists bash && (echo >"/dev/tcp/localhost/$port") 2>/dev/null; then
+      return 0
+    fi
+    local current_time
+    current_time=$(date +%s)
+    if (( current_time - start_time >= timeout )); then
+      warn "Timeout: Port $port war nach ${timeout}s nicht erreichbar."
+      return 1
+    fi
+    sleep 0.5
+  done
+}
+
+wait_for_process(){
+  local pid="$1"
+  local timeout="${2:-10}"
+  local start_time
+  start_time=$(date +%s)
+  while true; do
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      return 0
+    fi
+    local current_time
+    current_time=$(date +%s)
+    if (( current_time - start_time >= timeout )); then
+      warn "Timeout: Prozess $pid war nach ${timeout}s nicht stabil."
+      return 1
+    fi
+    sleep 0.2
+  done
+}
+
 show_preflight(){
   detect_hardware
   detect_runtime_capabilities
