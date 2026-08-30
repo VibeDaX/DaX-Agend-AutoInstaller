@@ -15,6 +15,7 @@ ENV/
 .dax/pids/
 .dax/state.json
 .dax/capabilities.env
+.dax/watchdog.json
 runtime/
 data/
 vms/*.qcow2
