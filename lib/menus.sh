@@ -156,8 +156,13 @@ menu_services(){
     echo "    └─ [5b] Node-RED deinstallieren"
     echo "    └─ [5c] Faster-Whisper installieren"
     echo "    └─ [5d] Faster-Whisper deinstallieren"
-    echo "[6] Zurück ins Hauptmenü"
-    read -rp 'Auswahl [1-6]: ' c
+    echo "[6] AI Frameworks (LangChain, PyTorch)"
+    echo "    └─ [6a] LangChain installieren"
+    echo "    └─ [6b] LangChain deinstallieren"
+    echo "    └─ [6c] PyTorch installieren"
+    echo "    └─ [6d] PyTorch deinstallieren"
+    echo "[7] Zurück ins Hauptmenü"
+    read -rp 'Auswahl [1-7]: ' c
     clear 2>/dev/null || true
     case "$c" in
       1|1a) install_ollama; pause_menu ;;
@@ -171,7 +176,11 @@ menu_services(){
       5b) uninstall_nodered; pause_menu ;;
       5c) install_whisper; pause_menu ;;
       5d) uninstall_whisper; pause_menu ;;
-      6) return 0 ;;
+      6|6a) install_langchain; pause_menu ;;
+      6b) uninstall_langchain; pause_menu ;;
+      6c) install_pytorch; pause_menu ;;
+      6d) uninstall_pytorch; pause_menu ;;
+      7) return 0 ;;
       *) warn 'Ungültige Auswahl.'; sleep 1 ;;
     esac
   done

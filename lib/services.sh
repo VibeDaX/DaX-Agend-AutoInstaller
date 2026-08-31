@@ -349,3 +349,87 @@ pause_menu(){
   read -rp 'ENTER zum Fortfahren...' _
   clear 2>/dev/null || true
 }
+
+# ════════════════════════════════════════════════════════════════════════════
+# AI FRAMEWORKS — LangChain & PyTorch
+# ════════════════════════════════════════════════════════════════════════════
+
+install_langchain(){
+  info "Installiere LangChain AI Framework..."
+  local venv_path="${SCRIPT_DIR}/.langchainvenv"
+
+  if [[ -d "$venv_path" ]]; then
+    info "LangChain VENV existiert bereits — aktualisiere..."
+  else
+    python3 -m venv "$venv_path"
+    info "LangChain VENV erstellt: $venv_path"
+  fi
+
+  source "$venv_path/bin/activate"
+  pip install --upgrade pip setuptools wheel >>"$LOG_FILE" 2>&1
+  pip install langchain langchain-community langchain-core langchain-openai >>"$LOG_FILE" 2>&1
+  pip install openai tiktoken >>"$LOG_FILE" 2>&1
+  deactivate
+
+  ok "LangChain installiert in: $venv_path"
+  info "Aktivieren: source $venv_path/bin/activate"
+}
+
+uninstall_langchain(){
+  confirm_action "LangChain und VENV entfernen?" || return 0
+  local venv_path="${SCRIPT_DIR}/.langchainvenv"
+  info "Entferne LangChain VENV..."
+  rm -rf "$venv_path"
+  ok "LangChain entfernt."
+}
+
+install_pytorch(){
+  info "Installiere PyTorch..."
+  local venv_path="${SCRIPT_DIR}/.pytorchvenv"
+
+  detect_hardware
+
+  if [[ -d "$venv_path" ]]; then
+    info "PyTorch VENV existiert bereits — aktualisiere..."
+  else
+    python3 -m venv "$venv_path"
+    info "PyTorch VENV erstellt: $venv_path"
+  fi
+
+  source "$venv_path/bin/activate"
+  pip install --upgrade pip setuptools wheel >>"$LOG_FILE" 2>&1
+
+  case "$GPU_TYPE" in
+    nvidia)
+      info "Installiere PyTorch mit CUDA Support..."
+      pip install torch torchvision torchaudio --index-url "$TORCH_INDEX" >>"$LOG_FILE" 2>&1
+      ;;
+    amd)
+      info "Installiere PyTorch mit ROCm Support..."
+      pip install torch torchvision torchaudio --index-url "$TORCH_INDEX" >>"$LOG_FILE" 2>&1
+      ;;
+    apple)
+      info "Installiere PyTorch mit MPS Support..."
+      pip install torch torchvision torchaudio >>"$LOG_FILE" 2>&1
+      ;;
+    *)
+      info "Installiere PyTorch (CPU Only)..."
+      pip install torch torchvision torchaudio --index-url "https://download.pytorch.org/whl/cpu" >>"$LOG_FILE" 2>&1
+      ;;
+  esac
+
+  pip install transformers datasets accelerate >>"$LOG_FILE" 2>&1
+  deactivate
+
+  ok "PyTorch installiert in: $venv_path"
+  info "GPU Backend: $GPU_TYPE"
+  info "Aktivieren: source $venv_path/bin/activate"
+}
+
+uninstall_pytorch(){
+  confirm_action "PyTorch und VENV entfernen?" || return 0
+  local venv_path="${SCRIPT_DIR}/.pytorchvenv"
+  info "Entferne PyTorch VENV..."
+  rm -rf "$venv_path"
+  ok "PyTorch entfernt."
+}

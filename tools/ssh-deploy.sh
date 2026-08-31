@@ -397,11 +397,278 @@ pause_menu() {
     read -rp "Drücke Enter um fortzufahren..."
 }
 
+# ════════════════════════════════════════════════════════════════════════════
+# TAILSCALE MODULE
+# ════════════════════════════════════════════════════════════════════════════
+
+tailscale_status() {
+    if ! command -v tailscale >/dev/null 2>&1; then
+        log_warn "Tailscale ist nicht installiert."
+        return 1
+    fi
+
+    log_hdr "Tailscale Status"
+    echo ""
+    tailscale status 2>/dev/null || tailscale status 2>&1 || true
+    echo ""
+    tailscale ip -4 2>/dev/null || true
+}
+
+tailscale_install() {
+    log_hdr "╔════════════════════════════════════════════════════════════╗"
+    log_hdr "║              TAILSCALE INSTALLATION                        ║"
+    log_hdr "╚════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    if command -v tailscale >/dev/null 2>&1; then
+        log_ok "Tailscale ist bereits installiert."
+        tailscale_status
+        return 0
+    fi
+
+    log_info "Installiere Tailscale..."
+    echo ""
+
+    # Official Tailscale install script
+    if curl -fsSL https://tailscale.com/install.sh | sh 2>&1; then
+        log_ok "Tailscale erfolgreich installiert."
+    else
+        log_err "Tailscale Installation fehlgeschlagen."
+        return 1
+    fi
+}
+
+tailscale_start() {
+    log_hdr "╔════════════════════════════════════════════════════════════╗"
+    log_hdr "║              TAILSCALE STARTEN                             ║"
+    log_hdr "╚════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    if ! command -v tailscale >/dev/null 2>&1; then
+        log_err "Tailscale ist nicht installiert. Bitte zuerst installieren."
+        return 1
+    fi
+
+    # Check if already running
+    if tailscale ip -4 >/dev/null 2>&1; then
+        log_ok "Tailscale ist bereits aktiv."
+        tailscale_status
+        return 0
+    fi
+
+    log_info "Starte Tailscale..."
+    echo ""
+    echo "Optionen:"
+    echo "[1] Standard (ohne Tags)"
+    echo "[2] Mit Tags (z.B. tag:server,tag:dax)"
+    echo "[3] Als Exit Node nutzen"
+    echo "[4] Mit Custom Server (--login-server)"
+    echo "[5] Abbrechen"
+    echo ""
+    read -rp "Auswahl [1-5]: " ts_mode
+
+    local extra_args=""
+    case "$ts_mode" in
+        1) ;;
+        2)
+            read -rp "Tags (kommagetrennt, z.B. tag:server,tag:dax): " tags
+            [[ -n "$tags" ]] && extra_args="--advertise-tags=$tags"
+            ;;
+        3)
+            extra_args="--advertise-exit-node"
+            log_info "Exit Node wird aktiviert. Approve im Tailscale Admin Panel nötig."
+            ;;
+        4)
+            read -rp "Custom Login Server URL: " server_url
+            [[ -n "$server_url" ]] && extra_args="--login-server=$server_url"
+            ;;
+        5) return 0 ;;
+        *) log_warn "Ungültige Auswahl."; return 1 ;;
+    esac
+
+    echo ""
+    log_info "Führe aus: sudo tailscale up $extra_args"
+    echo ""
+
+    if sudo tailscale up $extra_args 2>&1; then
+        echo ""
+        log_ok "Tailscale gestartet!"
+        tailscale_status
+    else
+        log_err "Tailscale Start fehlgeschlagen."
+        log_info "Hinweis: Auf Termux/PRoot möglicherweise nicht unterstützt."
+        return 1
+    fi
+}
+
+tailscale_stop() {
+    if ! command -v tailscale >/dev/null 2>&1; then
+        log_warn "Tailscale ist nicht installiert."
+        return 1
+    fi
+
+    log_info "Stoppe Tailscale..."
+    sudo tailscale down 2>&1 || true
+    log_ok "Tailscale gestoppt."
+}
+
+tailscale_uninstall() {
+    log_hdr "╔════════════════════════════════════════════════════════════╗"
+    log_hdr "║              TAILSCALE DEINSTALLATION                      ║"
+    log_hdr "╚════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    if ! command -v tailscale >/dev/null 2>&1; then
+        log_warn "Tailscale ist nicht installiert."
+        return 0
+    fi
+
+    confirm_action "Tailscale wirklich deinstallieren?" || return 0
+
+    log_info "Stoppe Tailscale..."
+    sudo tailscale down 2>/dev/null || true
+
+    if sudo apt-get remove -y tailscale 2>&1; then
+        log_ok "Tailscale deinstalliert."
+        sudo rm -rf /var/lib/tailscale /var/log/tailscale 2>/dev/null || true
+    else
+        log_err "Deinstallation fehlgeschlagen."
+        return 1
+    fi
+}
+
+tailscale_configure() {
+    log_hdr "╔════════════════════════════════════════════════════════════╗"
+    log_hdr "║              TAILSCALE KONFIGURATION                       ║"
+    log_hdr "╚════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    if ! command -v tailscale >/dev/null 2>&1; then
+        log_err "Tailscale ist nicht installiert."
+        return 1
+    fi
+
+    echo "[1] DNS Einstellungen"
+    echo "[2] Route Advertise/Accept"
+    echo "[3] Exit Node setzen"
+    echo "[4] SSH über Tailscale aktivieren"
+    echo "[5] MagicDNS ein/aus"
+    echo "[6] Status anzeigen"
+    echo "[7] Zurück"
+    echo ""
+    read -rp "Auswahl [1-7]: " ts_conf
+
+    case "$ts_conf" in
+        1)
+            echo ""
+            echo "[1] Tailscale DNS verwenden"
+            echo "[2] Custom DNS Server"
+            echo "[3] DNS zurücksetzen"
+            read -rp "Auswahl [1-3]: " dns_mode
+            case "$dns_mode" in
+                1) sudo tailscale set --accept-dns=true; log_ok "Tailscale DNS aktiviert." ;;
+                2)
+                    read -rp "DNS Server (z.B. 1.1.1.1): " dns_server
+                    sudo tailscale set --dns="$dns_server" 2>/dev/null || \
+                    sudo tailscale set --accept-dns=false 2>/dev/null
+                    log_ok "DNS konfiguriert."
+                    ;;
+                3) sudo tailscale set --accept-dns=false; log_ok "DNS zurückgesetzt." ;;
+            esac
+            ;;
+        2)
+            echo ""
+            echo "[1] Route advertise (Subnet weitergeben)"
+            echo "[2] Route accept (Subnets annoncieren)"
+            read -rp "Auswahl [1-2]: " route_mode
+            case "$route_mode" in
+                1)
+                    read -rp "Subnet (z.B. 192.168.1.0/24): " subnet
+                    sudo tailscale set --advertise-routes="$subnet"
+                    log_ok "Route advertised: $subnet"
+                    log_info "Im Tailscale Admin Panel approven nicht vergessen!"
+                    ;;
+                2)
+                    sudo tailscale set --accept-routes=true
+                    log_ok "Route accept aktiviert."
+                    ;;
+            esac
+            ;;
+        3)
+            echo ""
+            echo "[1] Als Exit Node advertisen"
+            echo "[2] Exit Node deaktivieren"
+            read -rp "Auswahl [1-2]: " exit_mode
+            case "$exit_mode" in
+                1) sudo tailscale set --advertise-exit-node; log_ok "Exit Node aktiviert." ;;
+                2) sudo tailscale set --advertise-exit-node=false 2>/dev/null || \
+                   sudo tailscale up --advertise-exit-node=false 2>/dev/null; log_ok "Exit Node deaktiviert." ;;
+            esac
+            ;;
+        4)
+            sudo tailscale set --ssh
+            log_ok "Tailscale SSH aktiviert."
+            log_info "SSH jetzt möglich: ssh user@<tailscale-ip>"
+            ;;
+        5)
+            echo ""
+            echo "[1] MagicDNS aktivieren"
+            echo "[2] MagicDNS deaktivieren"
+            read -rp "Auswahl [1-2]: " dns_toggle
+            case "$dns_toggle" in
+                1) sudo tailscale set --accept-dns=true; log_ok "MagicDNS aktiviert." ;;
+                2) sudo tailscale set --accept-dns=false; log_ok "MagicDNS deaktiviert." ;;
+            esac
+            ;;
+        6) tailscale_status ;;
+        7) return 0 ;;
+    esac
+}
+
+menu_tailscale() {
+    while true; do
+        clear 2>/dev/null || true
+        echo -e "${CLR_BLUE}╔════════════════════════════════════════════════════════════╗${CLR_RESET}"
+        echo -e "${CLR_BLUE}║${CLR_GOLD}              TAILSCALE MANAGEMENT                   ${CLR_BLUE}║${CLR_RESET}"
+        echo -e "${CLR_BLUE}╚════════════════════════════════════════════════════════════╝${CLR_RESET}"
+        echo ""
+        local ts_status_text="${CLR_RED}nicht installiert${CLR_RESET}"
+        command -v tailscale >/dev/null 2>&1 && ts_status_text="${CLR_GREEN}installiert${CLR_RESET}"
+        echo -e "Status: $ts_status_text"
+        echo ""
+        echo "[1] Tailscale installieren"
+        echo "[2] Tailscale starten (tailscale up)"
+        echo "[3] Tailscale stoppen (tailscale down)"
+        echo "[4] Tailscale deinstallieren"
+        echo "[5] Tailscale konfigurieren (DNS, Routes, SSH)"
+        echo "[6] Tailscale Status anzeigen"
+        echo "[7] Zurück zu Verbindungen"
+        echo ""
+        read -rp "Auswahl [1-7]: " c
+        clear 2>/dev/null || true
+
+        case "$c" in
+            1) tailscale_install; pause_menu ;;
+            2) tailscale_start; pause_menu ;;
+            3) tailscale_stop; pause_menu ;;
+            4) tailscale_uninstall; pause_menu ;;
+            5) tailscale_configure; pause_menu ;;
+            6) tailscale_status; pause_menu ;;
+            7) return 0 ;;
+            *) log_warn "Ungültige Auswahl."; sleep 1 ;;
+        esac
+    done
+}
+
+# ════════════════════════════════════════════════════════════════════════════
+# MAIN MENU — VERBINDUNGEN
+# ════════════════════════════════════════════════════════════════════════════
+
 menu_ssh_deploy() {
     while true; do
         clear 2>/dev/null || true
         echo -e "${CLR_BLUE}╔════════════════════════════════════════════════════════════╗${CLR_RESET}"
-        echo -e "${CLR_BLUE}║${CLR_GOLD}           [7] SSH DEPLOY — Universal Tool             ${CLR_BLUE}║${CLR_RESET}"
+        echo -e "${CLR_BLUE}║${CLR_GOLD}            SSH DEPLOY — Universal Tool              ${CLR_BLUE}║${CLR_RESET}"
         echo -e "${CLR_BLUE}╚════════════════════════════════════════════════════════════╝${CLR_RESET}"
         echo ""
         echo "[1] Phase 1: Geräte erfassen (Scan + Manuell)"
@@ -410,7 +677,7 @@ menu_ssh_deploy() {
         echo "[4] Netzwerk-Scan only"
         echo "[5] Bestehende Hosts anzeigen"
         echo "[6] SSH-Config anzeigen"
-        echo "[7] Zurück ins Hauptmenü"
+        echo "[7] Zurück zu Verbindungen"
         echo ""
         read -rp "Auswahl [1-7]: " c
         clear 2>/dev/null || true
@@ -454,5 +721,28 @@ menu_ssh_deploy() {
     done
 }
 
+menu_verbindungen() {
+    while true; do
+        clear 2>/dev/null || true
+        echo -e "${CLR_BLUE}╔════════════════════════════════════════════════════════════╗${CLR_RESET}"
+        echo -e "${CLR_BLUE}║${CLR_GOLD}               [7] VERBINDUNGEN                     ${CLR_BLUE}║${CLR_RESET}"
+        echo -e "${CLR_BLUE}╚════════════════════════════════════════════════════════════╝${CLR_RESET}"
+        echo ""
+        echo "[1] SSH Deploy (Key Discovery & Deploy)"
+        echo "[2] Tailscale (Installieren, Starten, Konfigurieren)"
+        echo "[3] Zurück ins Hauptmenü"
+        echo ""
+        read -rp "Auswahl [1-3]: " c
+        clear 2>/dev/null || true
+
+        case "$c" in
+            1) menu_ssh_deploy ;;
+            2) menu_tailscale ;;
+            3) return 0 ;;
+            *) log_warn "Ungültige Auswahl."; sleep 1 ;;
+        esac
+    done
+}
+
 # Entry point
-menu_ssh_deploy "$@"
+menu_verbindungen "$@"
