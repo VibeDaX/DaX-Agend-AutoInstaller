@@ -78,10 +78,11 @@ main_menu(){
     echo "[2] RUNTIMES (Native, Docker, KVM, Remote)"
     echo "[3] CONTROL-PLANE MODULES (Agents, Policy, Secrets, Backups, Dashboard)"
     echo "[4] SERVICES (Ollama, ComfyUI, Open WebUI, Node-RED/Whisper)"
-    echo "[5] OPERATIONS (Watchdog, Tests, State, Stop, Logs)"
-    echo "[6] Hilfe & Anleitung"
-    echo "[7] Beenden"
-    read -rp 'Auswahl [1-7]: ' choice
+echo "[5] OPERATIONS (Watchdog, Tests, State, Stop, Logs)"
+echo "[6] Hilfe & Anleitung"
+echo "[7] SSH Deploy (Key Discovery & Deploy)"
+echo "[8] Beenden"
+read -rp 'Auswahl [1-8]: ' choice
     clear 2>/dev/null || true
     case "$choice" in
       1) menu_host ;;
@@ -90,7 +91,8 @@ main_menu(){
       4) menu_services ;;
       5) menu_operations ;;
       6) menu_help ;;
-      7) exit 0 ;;
+      7) "$SCRIPT_DIR/tools/ssh-deploy.sh" ;;
+      8) exit 0 ;;
       *) warn 'Ungültige Auswahl.'; sleep 1 ;;
     esac
   done
